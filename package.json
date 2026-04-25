@@ -1,0 +1,74 @@
+{
+  "name": "rainpane",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ambient focus overlay prototype with procedural rain, fog, and droplets.",
+  "author": "Rainpane",
+  "main": "dist-electron/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"npm:dev:electron\"",
+    "dev:electron": "wait-on tcp:5173 && tsc -p electron/tsconfig.json && VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "generate:icons": "node scripts/generate-icons.mjs",
+    "build": "tsc --noEmit && vite build && tsc -p electron/tsconfig.json",
+    "package": "npm run generate:icons && npm run build && electron-builder --dir --config.electronDist=node_modules/electron/dist",
+    "dist": "npm run dist:mac",
+    "dist:mac": "npm run generate:icons && npm run build && electron-builder --mac --config.electronDist=node_modules/electron/dist",
+    "dist:win": "npm run generate:icons && npm run build && electron-builder --win zip --x64",
+    "dist:win:arm64": "npm run generate:icons && npm run build && electron-builder --win zip --arm64",
+    "preview": "vite preview",
+    "start": "electron .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.2",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.2.0",
+    "concurrently": "^9.2.1",
+    "electron": "^39.8.9",
+    "electron-builder": "^26.8.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12",
+    "vitest": "^3.2.4",
+    "wait-on": "^9.0.1"
+  },
+  "build": {
+    "appId": "app.rainpane.Rainpane",
+    "productName": "Rainpane",
+    "electronVersion": "39.8.9",
+    "directories": {
+      "output": "release"
+    },
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "identity": null,
+      "hardenedRuntime": false
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "zip"
+      ],
+      "artifactName": "${productName}-${version}-${arch}-win.${ext}"
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    }
+  }
+}
