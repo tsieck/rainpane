@@ -1,6 +1,6 @@
 {
   "name": "rainpane",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Ambient focus overlay prototype with procedural rain, fog, and droplets.",
   "author": "Rainpane",
@@ -10,10 +10,11 @@
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"npm:dev:electron\"",
     "dev:electron": "wait-on tcp:5173 && tsc -p electron/tsconfig.json && VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
     "generate:icons": "node scripts/generate-icons.mjs",
+    "clean:electron-xattrs": "node scripts/clean-electron-xattrs.mjs",
     "build": "tsc --noEmit && vite build && tsc -p electron/tsconfig.json",
-    "package": "npm run generate:icons && npm run build && electron-builder --dir --config.electronDist=node_modules/electron/dist",
+    "package": "npm run generate:icons && npm run clean:electron-xattrs && npm run build && electron-builder --dir --config.directories.output=/tmp/rainpane-release",
     "dist": "npm run dist:mac",
-    "dist:mac": "npm run generate:icons && npm run build && electron-builder --mac --config.electronDist=node_modules/electron/dist",
+    "dist:mac": "npm run generate:icons && npm run clean:electron-xattrs && npm run build && electron-builder --mac --config.directories.output=/tmp/rainpane-release",
     "dist:win": "npm run generate:icons && npm run build && electron-builder --win zip --x64",
     "dist:win:arm64": "npm run generate:icons && npm run build && electron-builder --win zip --arm64",
     "preview": "vite preview",
@@ -44,6 +45,7 @@
     "directories": {
       "output": "release"
     },
+    "afterPack": "scripts/after-pack.cjs",
     "artifactName": "${productName}-${version}-${arch}.${ext}",
     "files": [
       "dist/**",
@@ -57,7 +59,7 @@
         "dmg",
         "zip"
       ],
-      "identity": null,
+      "identity": "-",
       "hardenedRuntime": false
     },
     "win": {

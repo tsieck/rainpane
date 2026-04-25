@@ -54,9 +54,9 @@ This creates a Windows x64 zip. For Windows on ARM:
 npm run dist:win:arm64
 ```
 
-Packaging output goes to `release/`.
+macOS package output goes to `/tmp/rainpane-release/`. The temporary output path avoids macOS File Provider metadata that can break ad-hoc code signing when the project lives under Documents or another synced folder. Windows package output goes to `release/`.
 
-The current package config is unsigned for local development. macOS may show normal warnings for unsigned apps. Windows builds currently package the overlay and demo architecture, but active-window clear masking is still macOS-only until a Windows active-window provider is implemented.
+The current package config uses ad-hoc macOS signing for local alpha builds. macOS may still warn that the app is from an unidentified developer because it is not Developer ID signed or notarized yet. Windows builds currently package the overlay and demo architecture, but active-window clear masking is still macOS-only until a Windows active-window provider is implemented.
 
 App icons are generated procedurally from `scripts/generate-icons.mjs` into:
 
