@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, type Display } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, screen, type Display } from 'electron';
 import { getActiveWindowBounds, mapWindowToDisplayMask, type ActiveWindowState } from './activeWindow.js';
 import { isAccessibilityTrusted, openAccessibilitySettings, requestAccessibilityPermission } from './permissions.js';
 import { registerShortcuts } from './shortcuts.js';
@@ -26,6 +26,11 @@ let lastGeometryChangeAt = 0;
 let activeWindowPoll: NodeJS.Timeout | null = null;
 let saveSettingsTimer: NodeJS.Timeout | null = null;
 const ACTIVE_WINDOW_POLL_MS = 125;
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!gotSingleInstanceLock) {
+  app.exit(0);
+}
 
 function liveWindows() {
   return [
@@ -131,6 +136,9 @@ function syncOverlayWindows() {
 function ensureDemoWindow() {
   if (demoWindow && !demoWindow.isDestroyed()) {
     demoWindow.show();
+    if (process.platform === 'darwin') {
+      app.dock?.show();
+    }
     demoWindow.focus();
     return demoWindow;
   }
@@ -140,6 +148,15 @@ function ensureDemoWindow() {
     demoWindow?.webContents.send('settings:changed', settings);
     demoWindow?.webContents.send('active-window:changed', activeWindowStateForDisplay(screen.getPrimaryDisplay()));
   });
+  demoWindow.on('close', (event) => {
+    if (isQuitting) {
+      return;
+    }
+
+    event.preventDefault();
+    demoWindow?.hide();
+  });
+
   demoWindow.on('closed', () => {
     demoWindow = null;
   });
@@ -274,6 +291,56 @@ function createApplication() {
   }
 }
 
+function createApplicationMenu() {
+  const menu = Menu.buildFromTemplate([
+    ...(process.platform === 'darwin'
+      ? ([
+          {
+            label: app.name,
+            submenu: [
+              {
+                label: 'Open Settings / Demo',
+                accelerator: 'CmdOrCtrl+Alt+S',
+                click: ensureDemoWindow,
+              },
+              {
+                label: 'Show / Hide Overlay',
+                accelerator: 'CmdOrCtrl+Alt+R',
+                click: toggleOverlay,
+              },
+              { type: 'separator' },
+              {
+                label: 'Quit Rainpane',
+                accelerator: 'Command+Q',
+                click: () => {
+                  isQuitting = true;
+                  app.quit();
+                },
+              },
+            ],
+          },
+        ] satisfies Electron.MenuItemConstructorOptions[])
+      : []),
+    {
+      label: 'View',
+      submenu: [
+        {
+          label: 'Open Settings / Demo',
+          accelerator: process.platform === 'darwin' ? undefined : 'CmdOrCtrl+Alt+S',
+          click: ensureDemoWindow,
+        },
+        {
+          label: 'Show / Hide Overlay',
+          accelerator: process.platform === 'darwin' ? undefined : 'CmdOrCtrl+Alt+R',
+          click: toggleOverlay,
+        },
+      ],
+    },
+  ]);
+
+  Menu.setApplicationMenu(menu);
+}
+
 app.setName('Rainpane');
 
 ipcMain.handle('settings:get', () => settings);
@@ -292,12 +359,19 @@ ipcMain.handle('active-window:get', () => activeWindowStateForDisplay(screen.get
 
 app.whenReady().then(async () => {
   settings = await loadSettings();
+  createApplicationMenu();
   createApplication();
 
   app.on('activate', () => {
     ensureDemoWindow();
     syncOverlayWindows();
   });
+});
+
+app.on('second-instance', () => {
+  ensureDemoWindow();
+  syncOverlayWindows();
+  trayController?.refresh();
 });
 
 app.on('before-quit', () => {
