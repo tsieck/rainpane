@@ -14,6 +14,8 @@ describe('electron settings validation', () => {
         displayMode: 'all',
         lockInDimmingEnabled: false,
         lowPowerMode: false,
+        autoLowPower: false,
+        idleDeepeningEnabled: false,
       },
       DEFAULT_SETTINGS,
     );
@@ -26,6 +28,8 @@ describe('electron settings validation', () => {
     expect(next.displayMode).toBe('all');
     expect(next.lockInDimmingEnabled).toBe(false);
     expect(next.lowPowerMode).toBe(false);
+    expect(next.autoLowPower).toBe(false);
+    expect(next.idleDeepeningEnabled).toBe(false);
   });
 
   it('clamps persisted intensity values', () => {

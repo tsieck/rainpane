@@ -1,5 +1,6 @@
 export type WeatherMode = 'cozy-rain' | 'storm-lock-in' | 'night-drive' | 'greyglass';
 export type DisplayMode = 'primary' | 'all';
+export type WeatherIntensity = 'mist' | 'rain' | 'downpour' | 'frosted';
 
 export interface WeatherSettings {
   mode: WeatherMode;
@@ -13,6 +14,7 @@ export interface WeatherSettings {
   dropletsEnabled: boolean;
   reducedMotion: boolean;
   lowPowerMode: boolean;
+  autoLowPower: boolean;
   debugMode: boolean;
   lightningEnabled: boolean;
   grainEnabled: boolean;
@@ -20,6 +22,7 @@ export interface WeatherSettings {
   coverFullScreen: boolean;
   fullRainWhileMoving: boolean;
   lockInDimmingEnabled: boolean;
+  idleDeepeningEnabled: boolean;
   displayMode: DisplayMode;
 }
 
@@ -30,6 +33,7 @@ export const DEFAULT_SETTINGS: WeatherSettings = {
   dropletsEnabled: true,
   reducedMotion: false,
   lowPowerMode: true,
+  autoLowPower: true,
   debugMode: false,
   lightningEnabled: false,
   grainEnabled: true,
@@ -37,12 +41,13 @@ export const DEFAULT_SETTINGS: WeatherSettings = {
   coverFullScreen: false,
   fullRainWhileMoving: true,
   lockInDimmingEnabled: true,
+  idleDeepeningEnabled: true,
   displayMode: 'primary',
-  rainIntensity: 0.42,
-  fogIntensity: 0.28,
-  dropletDensity: 0.34,
-  windAngle: -10,
-  animationSpeed: 0.78,
+  rainIntensity: 0.38,
+  fogIntensity: 0.24,
+  dropletDensity: 0.3,
+  windAngle: -8,
+  animationSpeed: 0.72,
 };
 
 const MODES = new Set<WeatherMode>(['cozy-rain', 'storm-lock-in', 'night-drive', 'greyglass']);
@@ -68,6 +73,7 @@ export function validateSettings(input: unknown, current: WeatherSettings): Weat
     dropletsEnabled: typeof candidate.dropletsEnabled === 'boolean' ? candidate.dropletsEnabled : current.dropletsEnabled,
     reducedMotion: typeof candidate.reducedMotion === 'boolean' ? candidate.reducedMotion : current.reducedMotion,
     lowPowerMode: typeof candidate.lowPowerMode === 'boolean' ? candidate.lowPowerMode : current.lowPowerMode,
+    autoLowPower: typeof candidate.autoLowPower === 'boolean' ? candidate.autoLowPower : current.autoLowPower,
     debugMode: typeof candidate.debugMode === 'boolean' ? candidate.debugMode : current.debugMode,
     lightningEnabled: typeof candidate.lightningEnabled === 'boolean' ? candidate.lightningEnabled : current.lightningEnabled,
     grainEnabled: typeof candidate.grainEnabled === 'boolean' ? candidate.grainEnabled : current.grainEnabled,
@@ -82,6 +88,10 @@ export function validateSettings(input: unknown, current: WeatherSettings): Weat
       typeof candidate.lockInDimmingEnabled === 'boolean'
         ? candidate.lockInDimmingEnabled
         : current.lockInDimmingEnabled,
+    idleDeepeningEnabled:
+      typeof candidate.idleDeepeningEnabled === 'boolean'
+        ? candidate.idleDeepeningEnabled
+        : current.idleDeepeningEnabled,
     displayMode:
       candidate.displayMode && DISPLAY_MODES.has(candidate.displayMode) ? candidate.displayMode : current.displayMode,
     rainIntensity: clamp(candidate.rainIntensity, 0, 1, current.rainIntensity),

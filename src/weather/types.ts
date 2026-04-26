@@ -1,5 +1,6 @@
 export type WeatherMode = 'cozy-rain' | 'storm-lock-in' | 'night-drive' | 'greyglass';
 export type DisplayMode = 'primary' | 'all';
+export type WeatherIntensity = 'mist' | 'rain' | 'downpour' | 'frosted';
 
 export interface Rect {
   x: number;
@@ -27,6 +28,7 @@ export interface WeatherSettings {
   dropletsEnabled: boolean;
   reducedMotion: boolean;
   lowPowerMode: boolean;
+  autoLowPower: boolean;
   debugMode: boolean;
   lightningEnabled: boolean;
   grainEnabled: boolean;
@@ -34,6 +36,7 @@ export interface WeatherSettings {
   coverFullScreen: boolean;
   fullRainWhileMoving: boolean;
   lockInDimmingEnabled: boolean;
+  idleDeepeningEnabled: boolean;
   displayMode: DisplayMode;
 }
 
@@ -68,6 +71,30 @@ export interface RainStreak {
   drift: number;
   thickness: number;
   broken: boolean;
+  seed: number;
+}
+
+export interface RainSplash {
+  x: number;
+  y: number;
+  age: number;
+  lifetime: number;
+  radius: number;
+  height: number;
+  opacity: number;
+  seed: number;
+}
+
+export interface EdgeRunoffDrop {
+  side: 'left' | 'right' | 'top';
+  t: number;
+  offset: number;
+  age: number;
+  lifetime: number;
+  speed: number;
+  radius: number;
+  opacity: number;
+  trail: number;
   seed: number;
 }
 

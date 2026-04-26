@@ -12,6 +12,30 @@ interface ActiveWindowState {
   isMoving?: boolean;
 }
 
+interface RuntimeState {
+  onBatteryPower: boolean;
+  idleDeepeningActive: boolean;
+}
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value));
+}
+
+function applyRuntimeSettings(settings: WeatherSettings, runtime: RuntimeState): WeatherSettings {
+  const lowPowerMode = settings.lowPowerMode || (settings.autoLowPower && runtime.onBatteryPower);
+  if (!settings.idleDeepeningEnabled || !runtime.idleDeepeningActive) {
+    return { ...settings, lowPowerMode };
+  }
+
+  return {
+    ...settings,
+    lowPowerMode,
+    fogIntensity: clamp01(settings.fogIntensity + 0.14),
+    dropletDensity: clamp01(settings.dropletDensity + 0.08),
+    rainIntensity: clamp01(settings.rainIntensity + 0.04),
+  };
+}
+
 function DebugMask({ state }: { state: ActiveWindowState }) {
   if (!state.mask) {
     return (
@@ -51,7 +75,9 @@ export function App() {
   const view = window.rainpane?.view ?? (new URLSearchParams(window.location.search).get('view') === 'overlay' ? 'overlay' : 'demo');
   const [settings, setSettings] = useState<WeatherSettings>(DEFAULT_SETTINGS);
   const [activeWindowState, setActiveWindowState] = useState<ActiveWindowState>({ bounds: null, mask: null });
+  const [runtimeState, setRuntimeState] = useState<RuntimeState>({ onBatteryPower: false, idleDeepeningActive: false });
   const preset = MODE_PRESETS[settings.mode];
+  const effectiveSettings = useMemo(() => applyRuntimeSettings(settings, runtimeState), [settings, runtimeState]);
 
   useEffect(() => {
     document.documentElement.dataset.view = view;
@@ -72,6 +98,48 @@ export function App() {
 
     const unsubscribe = window.rainpane.onSettingsChanged((nextSettings) => {
       setSettings(nextSettings);
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!window.rainpane) {
+      let lastInput = performance.now();
+      const markActive = () => {
+        lastInput = performance.now();
+        setRuntimeState((state) => (state.idleDeepeningActive ? { ...state, idleDeepeningActive: false } : state));
+      };
+      const interval = window.setInterval(() => {
+        const idleDeepeningActive = performance.now() - lastInput > 90000;
+        setRuntimeState((state) =>
+          state.idleDeepeningActive === idleDeepeningActive ? state : { ...state, idleDeepeningActive },
+        );
+      }, 5000);
+
+      window.addEventListener('mousemove', markActive);
+      window.addEventListener('keydown', markActive);
+      window.addEventListener('pointerdown', markActive);
+      return () => {
+        window.clearInterval(interval);
+        window.removeEventListener('mousemove', markActive);
+        window.removeEventListener('keydown', markActive);
+        window.removeEventListener('pointerdown', markActive);
+      };
+    }
+
+    let active = true;
+    window.rainpane.getRuntimeState().then((state) => {
+      if (active) {
+        setRuntimeState(state);
+      }
+    });
+
+    const unsubscribe = window.rainpane.onRuntimeChanged((state) => {
+      setRuntimeState(state);
     });
 
     return () => {
@@ -135,7 +203,7 @@ export function App() {
 
     return (
       <main className="overlay-shell" style={appStyle}>
-        <RainCanvas activeMask={effectiveMask} settings={settings} />
+        <RainCanvas activeMask={effectiveMask} settings={effectiveSettings} />
         {settings.debugMode ? <DebugMask state={activeWindowState} /> : null}
       </main>
     );
@@ -143,7 +211,7 @@ export function App() {
 
   return (
     <main className="app-shell" style={appStyle}>
-      <FakeDesktop settings={settings} />
+      <FakeDesktop settings={effectiveSettings} />
       <ControlsPanel settings={settings} onChange={updateSettings} onReset={resetSettings} />
     </main>
   );

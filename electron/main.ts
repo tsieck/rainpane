@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain, screen, type Display } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, powerMonitor, screen, type Display } from 'electron';
 import { getActiveWindowBounds, mapWindowToDisplayMask, type ActiveWindowState } from './activeWindow.js';
 import { isAccessibilityTrusted, openAccessibilitySettings, requestAccessibilityPermission } from './permissions.js';
 import { registerShortcuts } from './shortcuts.js';
@@ -10,6 +10,11 @@ import { createDemoWindow, createOverlayWindow } from './windows.js';
 interface OverlayEntry {
   window: BrowserWindow;
   display: Display;
+}
+
+interface RuntimeState {
+  onBatteryPower: boolean;
+  idleDeepeningActive: boolean;
 }
 
 let overlayWindows: OverlayEntry[] = [];
@@ -25,8 +30,19 @@ let lastWindowGeometry = '';
 let lastGeometryChangeAt = 0;
 let activeWindowPoll: NodeJS.Timeout | null = null;
 let saveSettingsTimer: NodeJS.Timeout | null = null;
+let runtimeMonitor: NodeJS.Timeout | null = null;
 let overlayVisibleBeforeDemoFocus = false;
 const ACTIVE_WINDOW_POLL_MS = 125;
+const IDLE_DEEPENING_SECONDS = 90;
+const INTENSITY_PRESETS = {
+  mist: { rainIntensity: 0.18, fogIntensity: 0.22, dropletDensity: 0.18, animationSpeed: 0.56 },
+  rain: { rainIntensity: 0.42, fogIntensity: 0.34, dropletDensity: 0.34, animationSpeed: 0.78 },
+  downpour: { rainIntensity: 0.82, fogIntensity: 0.58, dropletDensity: 0.64, animationSpeed: 1.08 },
+  frosted: { rainIntensity: 0.24, fogIntensity: 0.78, dropletDensity: 0.48, animationSpeed: 0.62 },
+} satisfies Record<
+  'mist' | 'rain' | 'downpour' | 'frosted',
+  Pick<WeatherSettings, 'rainIntensity' | 'fogIntensity' | 'dropletDensity' | 'animationSpeed'>
+>;
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
 if (!gotSingleInstanceLock) {
@@ -52,6 +68,20 @@ function broadcastSettings() {
     window.webContents.send('settings:changed', settings);
   }
   trayController?.refresh();
+}
+
+function currentRuntimeState(): RuntimeState {
+  return {
+    onBatteryPower: powerMonitor.isOnBatteryPower(),
+    idleDeepeningActive: powerMonitor.getSystemIdleTime() >= IDLE_DEEPENING_SECONDS,
+  };
+}
+
+function broadcastRuntimeState() {
+  const runtime = currentRuntimeState();
+  for (const window of liveWindows()) {
+    window.webContents.send('runtime:changed', runtime);
+  }
 }
 
 function broadcastActiveWindow() {
@@ -133,6 +163,7 @@ function createOverlayForDisplay(display: Display) {
 
   overlayWindow.webContents.once('did-finish-load', () => {
     overlayWindow.webContents.send('settings:changed', settings);
+    overlayWindow.webContents.send('runtime:changed', currentRuntimeState());
     overlayWindow.webContents.send('active-window:changed', activeWindowStateForDisplay(display));
   });
   overlayWindow.on('closed', () => {
@@ -178,6 +209,7 @@ function ensureDemoWindow() {
   demoWindow = createDemoWindow();
   demoWindow.webContents.once('did-finish-load', () => {
     demoWindow?.webContents.send('settings:changed', settings);
+    demoWindow?.webContents.send('runtime:changed', currentRuntimeState());
     demoWindow?.webContents.send('active-window:changed', activeWindowStateForDisplay(screen.getPrimaryDisplay()));
   });
   demoWindow.on('close', (event) => {
@@ -306,6 +338,17 @@ function startActiveWindowPolling() {
   }, ACTIVE_WINDOW_POLL_MS);
 }
 
+function startRuntimeMonitoring() {
+  if (runtimeMonitor) {
+    return;
+  }
+
+  powerMonitor.on('on-battery', broadcastRuntimeState);
+  powerMonitor.on('on-ac', broadcastRuntimeState);
+  runtimeMonitor = setInterval(broadcastRuntimeState, 5000);
+  broadcastRuntimeState();
+}
+
 function createApplication() {
   syncOverlayWindows();
   ensureDemoWindow();
@@ -318,6 +361,7 @@ function createApplication() {
     lightningEnabled: settings.lightningEnabled,
     coverFullScreen: settings.coverFullScreen,
     lowPowerMode: settings.lowPowerMode,
+    autoLowPower: settings.autoLowPower,
     displayMode: settings.displayMode,
     accessibilityTrusted: isAccessibilityTrusted(),
     toggleOverlay,
@@ -327,6 +371,8 @@ function createApplication() {
     toggleLightning: () => updateSettings({ ...settings, lightningEnabled: !settings.lightningEnabled }),
     toggleCoverFullScreen: () => updateSettings({ ...settings, coverFullScreen: !settings.coverFullScreen }),
     toggleLowPowerMode: () => updateSettings({ ...settings, lowPowerMode: !settings.lowPowerMode }),
+    toggleAutoLowPower: () => updateSettings({ ...settings, autoLowPower: !settings.autoLowPower }),
+    setIntensity: (intensity) => updateSettings({ ...settings, ...INTENSITY_PRESETS[intensity] }),
     setDisplayMode: (displayMode) => updateSettings({ ...settings, displayMode }),
     requestAccessibility: () => {
       requestAccessibilityPermission();
@@ -347,6 +393,7 @@ function createApplication() {
   });
 
   startActiveWindowPolling();
+  startRuntimeMonitoring();
 
   if (process.platform === 'darwin') {
     requestAccessibilityPermission();
@@ -421,6 +468,7 @@ ipcMain.on('overlay:set-visible', (_event, visible: unknown) => {
   }
 });
 ipcMain.handle('active-window:get', () => activeWindowStateForDisplay(screen.getPrimaryDisplay()));
+ipcMain.handle('runtime:get', () => currentRuntimeState());
 
 app.whenReady().then(async () => {
   settings = await loadSettings();
@@ -449,6 +497,10 @@ app.on('before-quit', () => {
   if (saveSettingsTimer) {
     clearTimeout(saveSettingsTimer);
     saveSettingsTimer = null;
+  }
+  if (runtimeMonitor) {
+    clearInterval(runtimeMonitor);
+    runtimeMonitor = null;
   }
   void saveSettings(settings);
 });

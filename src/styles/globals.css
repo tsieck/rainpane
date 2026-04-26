@@ -328,7 +328,9 @@ input {
 
 .mode-button {
   display: grid;
-  gap: 4px;
+  grid-template-columns: 42px 1fr;
+  column-gap: 10px;
+  row-gap: 4px;
   width: 100%;
   padding: 12px;
   border: 1px solid rgba(235, 245, 241, 0.12);
@@ -337,6 +339,19 @@ input {
   color: #f0f6f3;
   text-align: left;
   cursor: pointer;
+}
+
+.mode-button i {
+  grid-row: span 2;
+  align-self: stretch;
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  background:
+    radial-gradient(circle at 22% 18%, var(--mode-fog), transparent 34%),
+    radial-gradient(circle at 82% 84%, color-mix(in srgb, var(--mode-fog), transparent 32%), transparent 46%),
+    linear-gradient(135deg, var(--mode-a), var(--mode-b));
+  opacity: 0.9;
 }
 
 .mode-button:hover {
@@ -358,6 +373,30 @@ input {
   color: rgba(240, 246, 243, 0.68);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.preset-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.preset-row button {
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid rgba(235, 245, 241, 0.12);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(245, 250, 247, 0.88);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.preset-row button:hover {
+  border-color: rgba(235, 245, 241, 0.26);
+  background: rgba(255, 255, 255, 0.085);
 }
 
 .toggle-grid {

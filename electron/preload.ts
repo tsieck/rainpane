@@ -4,6 +4,8 @@ import type { WeatherSettings } from './settings.js';
 
 type SettingsListener = (settings: WeatherSettings) => void;
 type ActiveWindowListener = (state: ActiveWindowState) => void;
+type RuntimeState = { onBatteryPower: boolean; idleDeepeningActive: boolean };
+type RuntimeListener = (state: RuntimeState) => void;
 
 const view = new URL(globalThis.location.href).searchParams.get('view') === 'overlay' ? 'overlay' : 'demo';
 
@@ -12,6 +14,7 @@ contextBridge.exposeInMainWorld('rainpane', {
   view,
   getSettings: () => ipcRenderer.invoke('settings:get') as Promise<WeatherSettings>,
   getActiveWindow: () => ipcRenderer.invoke('active-window:get') as Promise<ActiveWindowState>,
+  getRuntimeState: () => ipcRenderer.invoke('runtime:get') as Promise<RuntimeState>,
   updateSettings: (settings: WeatherSettings) => ipcRenderer.send('settings:update', settings),
   resetSettings: () => ipcRenderer.send('settings:reset'),
   setOverlayVisible: (visible: boolean) => ipcRenderer.send('overlay:set-visible', visible),
@@ -24,5 +27,10 @@ contextBridge.exposeInMainWorld('rainpane', {
     const listener = (_event: Electron.IpcRendererEvent, state: ActiveWindowState) => callback(state);
     ipcRenderer.on('active-window:changed', listener);
     return () => ipcRenderer.removeListener('active-window:changed', listener);
+  },
+  onRuntimeChanged: (callback: RuntimeListener) => {
+    const listener = (_event: Electron.IpcRendererEvent, state: RuntimeState) => callback(state);
+    ipcRenderer.on('runtime:changed', listener);
+    return () => ipcRenderer.removeListener('runtime:changed', listener);
   },
 });

@@ -1,4 +1,4 @@
-import type { ModePreset, WeatherMode, WeatherSettings } from '../weather/types';
+import type { ModePreset, WeatherIntensity, WeatherMode, WeatherSettings } from '../weather/types';
 
 export const MODE_PRESETS: Record<WeatherMode, ModePreset> = {
   'cozy-rain': {
@@ -6,11 +6,11 @@ export const MODE_PRESETS: Record<WeatherMode, ModePreset> = {
     label: 'Cozy Rain',
     description: 'Soft rain, low haze, calm movement.',
     settings: {
-      rainIntensity: 0.42,
-      fogIntensity: 0.28,
-      dropletDensity: 0.34,
-      windAngle: -10,
-      animationSpeed: 0.78,
+      rainIntensity: 0.38,
+      fogIntensity: 0.24,
+      dropletDensity: 0.3,
+      windAngle: -8,
+      animationSpeed: 0.72,
     },
     palette: {
       desktopA: '#28383b',
@@ -30,10 +30,10 @@ export const MODE_PRESETS: Record<WeatherMode, ModePreset> = {
     description: 'Heavy weather with stronger contrast.',
     settings: {
       rainIntensity: 0.95,
-      fogIntensity: 0.64,
-      dropletDensity: 0.68,
-      windAngle: -24,
-      animationSpeed: 1.12,
+      fogIntensity: 0.7,
+      dropletDensity: 0.72,
+      windAngle: -28,
+      animationSpeed: 1.16,
     },
     palette: {
       desktopA: '#111922',
@@ -52,11 +52,11 @@ export const MODE_PRESETS: Record<WeatherMode, ModePreset> = {
     label: 'Night Drive',
     description: 'Blue-grey glass and quick diagonal streaks.',
     settings: {
-      rainIntensity: 0.76,
-      fogIntensity: 0.46,
-      dropletDensity: 0.5,
-      windAngle: -34,
-      animationSpeed: 1.0,
+      rainIntensity: 0.8,
+      fogIntensity: 0.42,
+      dropletDensity: 0.54,
+      windAngle: -38,
+      animationSpeed: 1.04,
     },
     palette: {
       desktopA: '#0e1720',
@@ -75,11 +75,11 @@ export const MODE_PRESETS: Record<WeatherMode, ModePreset> = {
     label: 'Greyglass',
     description: 'Minimal color, slow droplets, premium haze.',
     settings: {
-      rainIntensity: 0.32,
-      fogIntensity: 0.52,
-      dropletDensity: 0.42,
+      rainIntensity: 0.26,
+      fogIntensity: 0.58,
+      dropletDensity: 0.38,
       windAngle: -6,
-      animationSpeed: 0.58,
+      animationSpeed: 0.54,
     },
     palette: {
       desktopA: '#303536',
@@ -102,6 +102,7 @@ export const DEFAULT_SETTINGS: WeatherSettings = {
   dropletsEnabled: true,
   reducedMotion: false,
   lowPowerMode: true,
+  autoLowPower: true,
   debugMode: false,
   lightningEnabled: false,
   grainEnabled: true,
@@ -109,8 +110,39 @@ export const DEFAULT_SETTINGS: WeatherSettings = {
   coverFullScreen: false,
   fullRainWhileMoving: true,
   lockInDimmingEnabled: true,
+  idleDeepeningEnabled: true,
   displayMode: 'primary',
   ...MODE_PRESETS['cozy-rain'].settings,
+};
+
+export const INTENSITY_PRESETS: Record<
+  WeatherIntensity,
+  Pick<WeatherSettings, 'rainIntensity' | 'fogIntensity' | 'dropletDensity' | 'animationSpeed'>
+> = {
+  mist: {
+    rainIntensity: 0.18,
+    fogIntensity: 0.22,
+    dropletDensity: 0.18,
+    animationSpeed: 0.56,
+  },
+  rain: {
+    rainIntensity: 0.42,
+    fogIntensity: 0.34,
+    dropletDensity: 0.34,
+    animationSpeed: 0.78,
+  },
+  downpour: {
+    rainIntensity: 0.82,
+    fogIntensity: 0.58,
+    dropletDensity: 0.64,
+    animationSpeed: 1.08,
+  },
+  frosted: {
+    rainIntensity: 0.24,
+    fogIntensity: 0.78,
+    dropletDensity: 0.48,
+    animationSpeed: 0.62,
+  },
 };
 
 export function applyMode(settings: WeatherSettings, mode: WeatherMode): WeatherSettings {
@@ -118,5 +150,12 @@ export function applyMode(settings: WeatherSettings, mode: WeatherMode): Weather
     ...settings,
     mode,
     ...MODE_PRESETS[mode].settings,
+  };
+}
+
+export function applyIntensity(settings: WeatherSettings, intensity: WeatherIntensity): WeatherSettings {
+  return {
+    ...settings,
+    ...INTENSITY_PRESETS[intensity],
   };
 }

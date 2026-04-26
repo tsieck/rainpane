@@ -19,12 +19,16 @@ export function withInactiveClip(
   height: number,
   clearMask: Rect | null,
   draw: () => void,
+  extraClearMasks: Rect[] = [],
 ) {
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, 0, width, height);
   if (clearMask) {
     ctx.rect(clearMask.x, clearMask.y, clearMask.width, clearMask.height);
+  }
+  for (const mask of extraClearMasks) {
+    ctx.rect(mask.x, mask.y, mask.width, mask.height);
   }
   ctx.clip('evenodd');
   draw();

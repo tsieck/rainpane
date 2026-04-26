@@ -8,6 +8,7 @@ interface TrayActions {
   lightningEnabled: boolean;
   coverFullScreen: boolean;
   lowPowerMode: boolean;
+  autoLowPower: boolean;
   displayMode: 'primary' | 'all';
   accessibilityTrusted: boolean;
   toggleOverlay: () => void;
@@ -17,6 +18,8 @@ interface TrayActions {
   toggleLightning: () => void;
   toggleCoverFullScreen: () => void;
   toggleLowPowerMode: () => void;
+  toggleAutoLowPower: () => void;
+  setIntensity: (intensity: 'mist' | 'rain' | 'downpour' | 'frosted') => void;
   setDisplayMode: (mode: 'primary' | 'all') => void;
   requestAccessibility: () => void;
   openDemo: () => void;
@@ -85,6 +88,33 @@ export function createRainpaneTray(getActions: () => TrayActions) {
         type: 'checkbox',
         checked: actions.lowPowerMode,
         click: actions.toggleLowPowerMode,
+      },
+      {
+        label: 'Auto Low Power on Battery',
+        type: 'checkbox',
+        checked: actions.autoLowPower,
+        click: actions.toggleAutoLowPower,
+      },
+      {
+        label: 'Intensity',
+        submenu: [
+          {
+            label: 'Mist',
+            click: () => actions.setIntensity('mist'),
+          },
+          {
+            label: 'Rain',
+            click: () => actions.setIntensity('rain'),
+          },
+          {
+            label: 'Downpour',
+            click: () => actions.setIntensity('downpour'),
+          },
+          {
+            label: 'Frosted',
+            click: () => actions.setIntensity('frosted'),
+          },
+        ],
       },
       {
         label: 'Displays',

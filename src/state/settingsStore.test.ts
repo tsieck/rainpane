@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyMode, DEFAULT_SETTINGS, MODE_PRESETS } from './settingsStore';
+import { applyIntensity, applyMode, DEFAULT_SETTINGS, INTENSITY_PRESETS, MODE_PRESETS } from './settingsStore';
 
 describe('weather settings', () => {
   it('has defaults that point to an existing mode', () => {
@@ -28,5 +28,13 @@ describe('weather settings', () => {
     expect(DEFAULT_SETTINGS.displayMode).toBe('primary');
     expect(DEFAULT_SETTINGS.lockInDimmingEnabled).toBe(true);
     expect(DEFAULT_SETTINGS.lowPowerMode).toBe(true);
+    expect(DEFAULT_SETTINGS.autoLowPower).toBe(true);
+    expect(DEFAULT_SETTINGS.idleDeepeningEnabled).toBe(true);
+  });
+
+  it('applies intensity preset values without changing mode', () => {
+    const next = applyIntensity(DEFAULT_SETTINGS, 'frosted');
+    expect(next.mode).toBe(DEFAULT_SETTINGS.mode);
+    expect(next.fogIntensity).toBe(INTENSITY_PRESETS.frosted.fogIntensity);
   });
 });

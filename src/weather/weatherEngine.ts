@@ -1,16 +1,22 @@
 import { drawDroplets, syncDroplets } from './droplets';
+import { drawEdgeRunoff, syncEdgeRunoff } from './edgeRunoff';
 import { drawFog } from './fog';
 import { FogAccumulator } from './fogAccumulation';
 import { drawLockInDimming } from './focusEffects';
+import { drawFrostedGlass } from './frostedGlass';
 import { drawGrain } from './grain';
 import { drawLightning, updateLightning, type LightningState } from './lightning';
 import { drawMaskFeather, withInactiveClip } from './masks';
+import { drawPaneVignette } from './paneVignette';
 import { drawRain, syncRainStreaks, updateRainGust, type RainGustState } from './raindrops';
-import type { Droplet, ModePreset, RainStreak, Rect, WeatherSettings } from './types';
+import { drawSplashes, maybeSpawnSplash } from './splashes';
+import type { Droplet, EdgeRunoffDrop, ModePreset, RainSplash, RainStreak, Rect, WeatherSettings } from './types';
 
 export class WeatherEngine {
   private streaks: RainStreak[] = [];
   private droplets: Droplet[] = [];
+  private splashes: RainSplash[] = [];
+  private edgeDrops: EdgeRunoffDrop[] = [];
   private lightning: LightningState = { cooldown: 9, flash: 0 };
   private rainGust: RainGustState = { cooldown: 5, strength: 0, direction: 1 };
   private fogAccumulator = new FogAccumulator();
@@ -33,16 +39,23 @@ export class WeatherEngine {
 
     syncRainStreaks(this.streaks, width, height, settings);
     syncDroplets(this.droplets, width, height, settings, activeMask);
+    syncEdgeRunoff(this.edgeDrops, activeMask, settings);
 
     withInactiveClip(ctx, width, height, activeMask, () => {
       const fogSettings = settings.fogAccumulationEnabled
         ? { ...settings, fogIntensity: settings.fogIntensity * 0.36 }
         : settings;
       drawFog(ctx, width, height, this.elapsed, fogSettings, preset.palette.tint, preset.palette.fog, preset.palette.shadow, activeMask);
+      drawPaneVignette(ctx, width, height, settings, preset);
       drawLockInDimming(ctx, width, height, settings, preset);
       this.fogAccumulator.draw(ctx, width, height, settings, preset);
+      drawFrostedGlass(ctx, width, height, this.elapsed, settings, preset);
       drawLightning(ctx, width, height, this.lightning, preset.palette.lightning);
-      drawRain(ctx, this.streaks, width, height, dt, settings, preset.palette.rain, activeMask, this.rainGust);
+      drawRain(ctx, this.streaks, width, height, dt, settings, preset.palette.rain, activeMask, this.rainGust, (x, y) => {
+        maybeSpawnSplash(this.splashes, x, y, settings);
+      });
+      drawSplashes(ctx, this.splashes, dt, settings, preset.palette.rain);
+      drawEdgeRunoff(ctx, this.edgeDrops, activeMask, dt, settings, preset.palette.rain);
       drawDroplets(ctx, this.droplets, width, height, dt, settings, activeMask);
       drawGrain(ctx, width, height, this.elapsed, settings);
     });

@@ -1,5 +1,5 @@
-import { applyMode } from '../state/settingsStore';
-import type { WeatherSettings } from '../weather/types';
+import { applyIntensity, applyMode } from '../state/settingsStore';
+import type { WeatherIntensity, WeatherSettings } from '../weather/types';
 import { ModeSelector } from './ModeSelector';
 
 interface ControlsPanelProps {
@@ -46,6 +46,13 @@ function Slider({
   );
 }
 
+const INTENSITY_LABELS: Array<{ id: WeatherIntensity; label: string }> = [
+  { id: 'mist', label: 'Mist' },
+  { id: 'rain', label: 'Rain' },
+  { id: 'downpour', label: 'Downpour' },
+  { id: 'frosted', label: 'Frosted' },
+];
+
 export function ControlsPanel({ settings, onChange, onReset }: ControlsPanelProps) {
   const update = (patch: Partial<WeatherSettings>) => onChange({ ...settings, ...patch });
 
@@ -57,6 +64,14 @@ export function ControlsPanel({ settings, onChange, onReset }: ControlsPanelProp
       </div>
 
       <ModeSelector value={settings.mode} onChange={(mode) => onChange(applyMode(settings, mode))} />
+
+      <div className="preset-row" aria-label="Intensity presets">
+        {INTENSITY_LABELS.map((preset) => (
+          <button key={preset.id} type="button" onClick={() => onChange(applyIntensity(settings, preset.id))}>
+            {preset.label}
+          </button>
+        ))}
+      </div>
 
       <label className="select-row">
         <span>Displays</span>
@@ -113,6 +128,14 @@ export function ControlsPanel({ settings, onChange, onReset }: ControlsPanelProp
         <label>
           <input
             type="checkbox"
+            checked={settings.autoLowPower}
+            onChange={(event) => update({ autoLowPower: event.currentTarget.checked })}
+          />
+          Auto low power
+        </label>
+        <label>
+          <input
+            type="checkbox"
             checked={settings.debugMode}
             onChange={(event) => update({ debugMode: event.currentTarget.checked })}
           />
@@ -165,6 +188,14 @@ export function ControlsPanel({ settings, onChange, onReset }: ControlsPanelProp
             onChange={(event) => update({ lockInDimmingEnabled: event.currentTarget.checked })}
           />
           Lock-in dimming
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.idleDeepeningEnabled}
+            onChange={(event) => update({ idleDeepeningEnabled: event.currentTarget.checked })}
+          />
+          Idle deepening
         </label>
       </div>
 

@@ -77,6 +77,7 @@ export function drawRain(
   rainColor: string,
   clearMask: Rect | null,
   gust: RainGustState,
+  onImpact?: (x: number, y: number) => void,
 ) {
   if (!settings.rainEnabled || streaks.length === 0) {
     return;
@@ -97,6 +98,9 @@ export function drawRain(
     streak.x += (windX * layerSpeed + streak.drift) * dt * settings.animationSpeed;
 
     if (streak.y - streak.length > height || streak.x < -100 || streak.x > width + 100) {
+      if (streak.y - streak.length > height && streak.layer !== 'far' && streak.x >= 0 && streak.x <= width) {
+        onImpact?.(streak.x, height - 12);
+      }
       streak.x = Math.random() * width;
       streak.y = -Math.random() * height * 0.25;
     }
@@ -115,11 +119,13 @@ export function drawRain(
       continue;
     }
 
+    const depthAlpha = streak.layer === 'far' ? 0.58 : streak.layer === 'near' ? 1.22 : 0.92;
+    const depthWidth = streak.layer === 'far' ? 0.68 : streak.layer === 'near' ? 1.18 : 0.92;
     const alpha =
       streak.opacity *
       settings.rainIntensity *
       (settings.mode === 'greyglass' ? 0.62 : 1) *
-      (streak.layer === 'near' ? 1.12 : streak.layer === 'far' ? 0.82 : 1);
+      depthAlpha;
     const gradient = ctx.createLinearGradient(streak.x, streak.y, endX, endY);
     gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
     gradient.addColorStop(0.22, rainColor);
@@ -128,7 +134,7 @@ export function drawRain(
 
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = gradient;
-    ctx.lineWidth = Math.max(0.45, streak.thickness * (0.55 + settings.rainIntensity * 0.55));
+    ctx.lineWidth = Math.max(0.38, streak.thickness * depthWidth * (0.55 + settings.rainIntensity * 0.55));
     ctx.beginPath();
     ctx.moveTo(streak.x, streak.y);
     if (streak.broken && streak.layer !== 'far') {
@@ -145,6 +151,16 @@ export function drawRain(
       ctx.lineTo(endX, endY);
     }
     ctx.stroke();
+
+    if (streak.layer === 'near' && !settings.lowPowerMode && alpha > 0.1) {
+      ctx.globalAlpha = alpha * 0.26;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+      ctx.lineWidth = Math.max(0.45, streak.thickness * 0.36);
+      ctx.beginPath();
+      ctx.moveTo(streak.x + unitX * length * 0.18, streak.y + unitY * length * 0.18);
+      ctx.lineTo(streak.x + unitX * length * 0.48, streak.y + unitY * length * 0.48);
+      ctx.stroke();
+    }
   }
 
   ctx.restore();
