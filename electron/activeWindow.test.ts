@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapWindowToDisplayMask, parseMacActiveWindowOutput } from './activeWindow.js';
+import { mapWindowToDisplayMask, parseMacActiveWindowOutput, parseWindowsActiveWindowOutput } from './activeWindow.js';
 
 describe('active window detection helpers', () => {
   it('parses macOS active window output', () => {
@@ -18,6 +18,39 @@ describe('active window detection helpers', () => {
 
   it('returns null when macOS output has no window bounds', () => {
     expect(parseMacActiveWindowOutput('Finder\tFinder\t\t\t\t\t')).toBeNull();
+  });
+
+  it('parses Windows active window JSON output', () => {
+    expect(
+      parseWindowsActiveWindowOutput(
+        JSON.stringify({
+          appName: 'Code',
+          processName: 'Code',
+          title: 'Rainpane',
+          x: 60,
+          y: 90,
+          width: 1200,
+          height: 800,
+          windowId: 7788,
+          source: 'win32',
+        }),
+      ),
+    ).toEqual({
+      appName: 'Code',
+      processName: 'Code',
+      title: 'Rainpane',
+      x: 60,
+      y: 90,
+      width: 1200,
+      height: 800,
+      windowId: 7788,
+      source: 'win32',
+    });
+  });
+
+  it('returns null when Windows output has no usable bounds', () => {
+    expect(parseWindowsActiveWindowOutput('')).toBeNull();
+    expect(parseWindowsActiveWindowOutput('{"x":0,"y":0,"width":0,"height":700}')).toBeNull();
   });
 
   it('maps screen bounds into overlay-local display coordinates', () => {

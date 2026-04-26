@@ -15,8 +15,8 @@
     "package": "npm run generate:icons && npm run clean:electron-xattrs && npm run build && electron-builder --dir --config.directories.output=/tmp/rainpane-release",
     "dist": "npm run dist:mac",
     "dist:mac": "npm run generate:icons && npm run clean:electron-xattrs && npm run build && electron-builder --mac --config.directories.output=/tmp/rainpane-release",
-    "dist:win": "npm run generate:icons && npm run build && electron-builder --win zip --x64",
-    "dist:win:arm64": "npm run generate:icons && npm run build && electron-builder --win zip --arm64",
+    "dist:win": "npm run generate:icons && npm run build && electron-builder --win zip --x64 --config.directories.output=/tmp/rainpane-release",
+    "dist:win:arm64": "npm run generate:icons && npm run build && electron-builder --win zip --arm64 --config.directories.output=/tmp/rainpane-release",
     "preview": "vite preview",
     "start": "electron .",
     "test": "vitest run"

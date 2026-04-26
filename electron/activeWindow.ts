@@ -25,7 +25,7 @@ export interface WindowBounds extends Rect {
   appName?: string;
   processName?: string;
   windowId?: number;
-  source?: 'accessibility' | 'core-graphics';
+  source?: 'accessibility' | 'core-graphics' | 'win32';
 }
 
 export interface ActiveWindowState {
@@ -170,6 +170,69 @@ for window in windows {
 print("\\(appName)\\t\\(processName)\\t\\t\\t\\t\\t")
 `;
 
+const WINDOWS_ACTIVE_WINDOW_SCRIPT = `
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+
+public static class RainpaneWinApi {
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+
+  [DllImport("user32.dll")]
+  public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+  [DllImport("user32.dll", SetLastError = true)]
+  public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+  public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+
+  [StructLayout(LayoutKind.Sequential)]
+  public struct RECT {
+    public int Left;
+    public int Top;
+    public int Right;
+    public int Bottom;
+  }
+}
+"@
+
+$hwnd = [RainpaneWinApi]::GetForegroundWindow()
+if ($hwnd -eq [IntPtr]::Zero) {
+  exit 0
+}
+
+$rect = New-Object RainpaneWinApi+RECT
+if (-not [RainpaneWinApi]::GetWindowRect($hwnd, [ref]$rect)) {
+  exit 0
+}
+
+$processId = 0
+[RainpaneWinApi]::GetWindowThreadProcessId($hwnd, [ref]$processId) | Out-Null
+$titleBuilder = New-Object System.Text.StringBuilder 512
+[RainpaneWinApi]::GetWindowText($hwnd, $titleBuilder, $titleBuilder.Capacity) | Out-Null
+
+$processName = ""
+try {
+  $processName = (Get-Process -Id $processId -ErrorAction Stop).ProcessName
+} catch {}
+
+[PSCustomObject]@{
+  appName = $processName
+  processName = $processName
+  title = $titleBuilder.ToString()
+  x = [int]$rect.Left
+  y = [int]$rect.Top
+  width = [int]($rect.Right - $rect.Left)
+  height = [int]($rect.Bottom - $rect.Top)
+  windowId = [int64]$hwnd
+  source = "win32"
+} | ConvertTo-Json -Compress
+`;
+
 function parseNumber(value: string): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -229,6 +292,52 @@ export function parseMacActiveWindowOutput(output: string): WindowBounds | null 
     processName: processName || appName || undefined,
     windowId: windowId ?? undefined,
     source: sourceValue === 'core-graphics' || sourceValue === 'accessibility' ? sourceValue : undefined,
+  };
+}
+
+export function parseWindowsActiveWindowOutput(output: string): WindowBounds | null {
+  const trimmed = output.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    return null;
+  }
+
+  const candidate = parsed as Partial<WindowBounds>;
+  const x = parseNumber(String(candidate.x));
+  const y = parseNumber(String(candidate.y));
+  const width = parseNumber(String(candidate.width));
+  const height = parseNumber(String(candidate.height));
+  const windowId = candidate.windowId === undefined ? null : parseNumber(String(candidate.windowId));
+
+  if (x === null || y === null || width === null || height === null || width <= 0 || height <= 0) {
+    return null;
+  }
+
+  return {
+    x,
+    y,
+    width,
+    height,
+    title: typeof candidate.title === 'string' && candidate.title ? candidate.title : undefined,
+    appName: typeof candidate.appName === 'string' && candidate.appName ? candidate.appName : undefined,
+    processName:
+      typeof candidate.processName === 'string' && candidate.processName
+        ? candidate.processName
+        : typeof candidate.appName === 'string' && candidate.appName
+          ? candidate.appName
+          : undefined,
+    windowId: windowId ?? undefined,
+    source: 'win32',
   };
 }
 
@@ -299,9 +408,27 @@ async function getMacActiveWindowBounds(): Promise<WindowBounds | null> {
   }
 }
 
+async function getWindowsActiveWindowBounds(): Promise<WindowBounds | null> {
+  const { stdout } = await execFileAsync(
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', WINDOWS_ACTIVE_WINDOW_SCRIPT],
+    {
+      timeout: 1200,
+      maxBuffer: 16 * 1024,
+      windowsHide: true,
+    },
+  );
+
+  return parseWindowsActiveWindowOutput(stdout);
+}
+
 export async function getActiveWindowBounds(): Promise<WindowBounds | null> {
   if (process.platform === 'darwin') {
     return getMacActiveWindowBounds();
+  }
+
+  if (process.platform === 'win32') {
+    return getWindowsActiveWindowBounds();
   }
 
   return null;

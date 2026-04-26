@@ -54,9 +54,9 @@ This creates a Windows x64 zip. For Windows on ARM:
 npm run dist:win:arm64
 ```
 
-macOS package output goes to `/tmp/rainpane-release/`. The temporary output path avoids macOS File Provider metadata that can break ad-hoc code signing when the project lives under Documents or another synced folder. Windows package output goes to `release/`.
+macOS and Windows package output goes to `/tmp/rainpane-release/`. The temporary output path avoids macOS File Provider metadata that can break ad-hoc code signing when the project lives under Documents or another synced folder, and keeps generated release archives out of the repo.
 
-The current package config uses ad-hoc macOS signing for local alpha builds. macOS may still warn that the app is from an unidentified developer because it is not Developer ID signed or notarized yet. Windows builds currently package the overlay and demo architecture, but active-window clear masking is still macOS-only until a Windows active-window provider is implemented.
+The current package config uses ad-hoc macOS signing for local alpha builds. macOS may still warn that the app is from an unidentified developer because it is not Developer ID signed or notarized yet. Windows builds are unsigned ZIP artifacts for early local testing.
 
 App icons are generated procedurally from `scripts/generate-icons.mjs` into:
 
@@ -67,8 +67,9 @@ App icons are generated procedurally from `scripts/generate-icons.mjs` into:
 
 ## Current Platform Support
 
-- macOS: active-window clear mask is implemented.
-- Windows/Linux: overlay rendering architecture is present, but active-window detection is not implemented yet.
+- macOS: active-window clear mask is implemented with CoreGraphics plus Accessibility fallback.
+- Windows: active-window clear mask is implemented with PowerShell-hosted Win32 foreground-window APIs.
+- Linux: overlay rendering architecture is present, but active-window detection is not implemented yet.
 - Multi-monitor: primary-display mode and all-displays mode are implemented.
 
 ## Phase 1 Features
@@ -104,6 +105,7 @@ App icons are generated procedurally from `scripts/generate-icons.mjs` into:
 - Debug Mask toggle shows the detected clear rectangle and app label.
 - Graceful fallback: if bounds are unavailable, weather renders across the whole overlay.
 - macOS detection tries a local CoreGraphics helper first, then falls back to Accessibility/System Events.
+- Windows detection uses PowerShell to call `GetForegroundWindow`, `GetWindowRect`, and process metadata from Win32 APIs.
 
 ### macOS Permission Note
 
@@ -145,6 +147,13 @@ node_modules/electron/dist/Electron.app
 
 - Quit and restart `npm run dev` after granting permission.
 - If active-window detection fails, Rainpane falls back to whole-screen rain.
+
+### Active window does not clear on Windows
+
+- Use the Windows ZIP build from `npm run dist:win`.
+- Run `Rainpane.exe` from the extracted folder.
+- If PowerShell is blocked by policy or security tooling, active-window detection may fail and Rainpane will fall back to whole-screen rain.
+- Windows packages are unsigned in the current alpha, so SmartScreen may warn before launch.
 
 ### ChatGPT, Codex, or other Electron apps do not clear correctly
 
@@ -229,13 +238,17 @@ src/
   weather/
     RainCanvas.tsx
     droplets.ts
+    edgeRunoff.ts
     fog.ts
     fogAccumulation.ts
+    frostedGlass.ts
     focusEffects.ts
     grain.ts
     lightning.ts
     masks.ts
+    paneVignette.ts
     raindrops.ts
+    splashes.ts
     types.ts
     weatherEngine.ts
 ```
@@ -243,6 +256,6 @@ src/
 ## Roadmap
 
 - Package polish: signing/notarization notes and screenshots/GIF.
-- Windows active-window detection implementation.
+- Windows release validation on a real Windows machine.
 - More multi-monitor hardening for hot-plug/display-layout changes.
 - Optional future focus refinements that remain purely visual.
