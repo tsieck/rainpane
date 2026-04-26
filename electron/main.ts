@@ -25,6 +25,7 @@ let lastWindowGeometry = '';
 let lastGeometryChangeAt = 0;
 let activeWindowPoll: NodeJS.Timeout | null = null;
 let saveSettingsTimer: NodeJS.Timeout | null = null;
+let overlayVisibleBeforeDemoFocus = false;
 const ACTIVE_WINDOW_POLL_MS = 125;
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
@@ -37,6 +38,13 @@ function liveWindows() {
     ...overlayWindows.map((entry) => entry.window),
     demoWindow,
   ].filter((window): window is BrowserWindow => Boolean(window && !window.isDestroyed()));
+}
+
+function activateRainpane() {
+  if (process.platform === 'darwin') {
+    app.dock?.show();
+    app.focus({ steal: true });
+  }
 }
 
 function broadcastSettings() {
@@ -89,6 +97,18 @@ function activeWindowStateForDisplay(display: Display): ActiveWindowState {
   };
 }
 
+function isRainpaneWindow(bounds: ActiveWindowState['bounds']) {
+  if (!bounds) {
+    return false;
+  }
+
+  const appName = bounds.appName?.toLowerCase() ?? '';
+  const processName = bounds.processName?.toLowerCase() ?? '';
+  const title = bounds.title?.toLowerCase() ?? '';
+
+  return appName === 'rainpane' || processName === 'rainpane' || title === 'rainpane' || title === 'rainpane demo';
+}
+
 function targetDisplays() {
   return settings.displayMode === 'all' ? screen.getAllDisplays() : [screen.getPrimaryDisplay()];
 }
@@ -136,9 +156,7 @@ function syncOverlayWindows() {
 function ensureDemoWindow() {
   if (demoWindow && !demoWindow.isDestroyed()) {
     demoWindow.show();
-    if (process.platform === 'darwin') {
-      app.dock?.show();
-    }
+    activateRainpane();
     demoWindow.focus();
     return demoWindow;
   }
@@ -159,6 +177,28 @@ function ensureDemoWindow() {
 
   demoWindow.on('closed', () => {
     demoWindow = null;
+  });
+  demoWindow.on('focus', () => {
+    overlayVisibleBeforeDemoFocus = overlayWindows.some((entry) => entry.window.isVisible());
+    for (const entry of overlayWindows) {
+      entry.window.hide();
+    }
+    trayController?.refresh();
+  });
+  demoWindow.on('blur', () => {
+    if (!overlayVisibleBeforeDemoFocus) {
+      return;
+    }
+
+    for (const entry of overlayWindows) {
+      entry.window.showInactive();
+    }
+    overlayVisibleBeforeDemoFocus = false;
+    trayController?.refresh();
+  });
+  demoWindow.once('ready-to-show', () => {
+    activateRainpane();
+    demoWindow?.focus();
   });
 
   return demoWindow;
@@ -193,7 +233,12 @@ function setOverlayVisible(visible: boolean) {
 
 async function pollActiveWindow() {
   try {
-    const bounds = await getActiveWindowBounds();
+    const detectedBounds = await getActiveWindowBounds();
+    if (isRainpaneWindow(detectedBounds)) {
+      return;
+    }
+
+    const bounds = detectedBounds;
     const identity = bounds
       ? `${bounds.appName ?? ''}:${bounds.processName ?? ''}:${bounds.windowId ?? bounds.title ?? ''}`
       : 'null';
@@ -344,6 +389,9 @@ function createApplicationMenu() {
 }
 
 app.setName('Rainpane');
+if (process.platform === 'darwin') {
+  app.setActivationPolicy('regular');
+}
 
 ipcMain.handle('settings:get', () => settings);
 ipcMain.on('settings:update', (_event, nextSettings: unknown) => {
@@ -361,6 +409,7 @@ ipcMain.handle('active-window:get', () => activeWindowStateForDisplay(screen.get
 
 app.whenReady().then(async () => {
   settings = await loadSettings();
+  activateRainpane();
   createApplicationMenu();
   createApplication();
 
