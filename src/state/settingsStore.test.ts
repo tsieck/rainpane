@@ -27,5 +27,6 @@ describe('weather settings', () => {
     expect(DEFAULT_SETTINGS.fullRainWhileMoving).toBe(true);
     expect(DEFAULT_SETTINGS.displayMode).toBe('primary');
     expect(DEFAULT_SETTINGS.lockInDimmingEnabled).toBe(true);
+    expect(DEFAULT_SETTINGS.lowPowerMode).toBe(true);
   });
 });

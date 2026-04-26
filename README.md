@@ -78,7 +78,7 @@ App icons are generated procedurally from `scripts/generate-icons.mjs` into:
 - Drag windows by their title bars.
 - Active fake window stays clear.
 - Inactive windows and the desktop background receive procedural rain, fog, and droplets.
-- Live controls for rain intensity, fog intensity, droplet density, wind angle, animation speed, toggles, and reduced motion.
+- Live controls for rain intensity, fog intensity, droplet density, wind angle, animation speed, toggles, reduced motion, and low-power rendering.
 - Presets: Cozy Rain, Storm Lock-in, Night Drive, and Greyglass.
 
 ## Phase 2 Features
@@ -166,11 +166,12 @@ Rainpane uses a local Swift/CoreGraphics helper before Accessibility/System Even
 - Optional procedural grain layer for a glass/noise texture.
 - Stylized-realism droplets with micro-beads, regular beads, sparse larger pane drops, richer highlights, subtle shadow/refraction, and slow sliding trails.
 - Grain and lightning are procedural canvas effects; no external assets are used.
+- Low Power Mode is enabled by default to cap canvas frame rate, reduce Retina pixel work, and lower rain/droplet/fog simulation density for laptop-friendly background use.
 
 ## Phase 5 Features
 
 - Settings are saved automatically to local JSON under Electron `userData`.
-- Mode, intensities, toggles, debug state, reduced motion, grain, lightning, display mode, cover-full-screen, moving-window behavior, and fog build-up survive restarts.
+- Mode, intensities, toggles, debug state, reduced motion, low-power mode, grain, lightning, display mode, cover-full-screen, moving-window behavior, and fog build-up survive restarts.
 - Settings / Demo includes `Reset to defaults`.
 - Fog build-up is enabled by default: inactive areas start lightly hazed and slowly accumulate toward a frosted-glass look, while the active-window mask fades back toward clear.
 

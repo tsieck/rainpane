@@ -13,6 +13,7 @@ describe('electron settings validation', () => {
         fullRainWhileMoving: false,
         displayMode: 'all',
         lockInDimmingEnabled: false,
+        lowPowerMode: false,
       },
       DEFAULT_SETTINGS,
     );
@@ -24,6 +25,7 @@ describe('electron settings validation', () => {
     expect(next.fullRainWhileMoving).toBe(false);
     expect(next.displayMode).toBe('all');
     expect(next.lockInDimmingEnabled).toBe(false);
+    expect(next.lowPowerMode).toBe(false);
   });
 
   it('clamps persisted intensity values', () => {

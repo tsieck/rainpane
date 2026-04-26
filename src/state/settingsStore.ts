@@ -101,6 +101,7 @@ export const DEFAULT_SETTINGS: WeatherSettings = {
   fogEnabled: true,
   dropletsEnabled: true,
   reducedMotion: false,
+  lowPowerMode: true,
   debugMode: false,
   lightningEnabled: false,
   grainEnabled: true,

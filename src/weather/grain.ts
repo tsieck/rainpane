@@ -11,9 +11,9 @@ export function drawGrain(
     return;
   }
 
-  const spacing = 5;
-  const phase = Math.floor(elapsed / 120) % 4;
-  const alpha = 0.018 + settings.fogIntensity * 0.015;
+  const spacing = settings.lowPowerMode ? 8 : 5;
+  const phase = Math.floor(elapsed / (settings.lowPowerMode ? 260 : 120)) % 4;
+  const alpha = (settings.lowPowerMode ? 0.012 : 0.018) + settings.fogIntensity * 0.012;
 
   ctx.save();
   ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;

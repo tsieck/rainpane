@@ -26,6 +26,7 @@ export interface WeatherSettings {
   fogEnabled: boolean;
   dropletsEnabled: boolean;
   reducedMotion: boolean;
+  lowPowerMode: boolean;
   debugMode: boolean;
   lightningEnabled: boolean;
   grainEnabled: boolean;

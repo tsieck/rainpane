@@ -7,6 +7,7 @@ interface TrayActions {
   debugMode: boolean;
   lightningEnabled: boolean;
   coverFullScreen: boolean;
+  lowPowerMode: boolean;
   displayMode: 'primary' | 'all';
   accessibilityTrusted: boolean;
   toggleOverlay: () => void;
@@ -15,6 +16,7 @@ interface TrayActions {
   toggleDebug: () => void;
   toggleLightning: () => void;
   toggleCoverFullScreen: () => void;
+  toggleLowPowerMode: () => void;
   setDisplayMode: (mode: 'primary' | 'all') => void;
   requestAccessibility: () => void;
   openDemo: () => void;
@@ -77,6 +79,12 @@ export function createRainpaneTray(getActions: () => TrayActions) {
         type: 'checkbox',
         checked: actions.coverFullScreen,
         click: actions.toggleCoverFullScreen,
+      },
+      {
+        label: 'Low Power Mode',
+        type: 'checkbox',
+        checked: actions.lowPowerMode,
+        click: actions.toggleLowPowerMode,
       },
       {
         label: 'Displays',

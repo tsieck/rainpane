@@ -257,6 +257,7 @@ function createApplication() {
     debugMode: settings.debugMode,
     lightningEnabled: settings.lightningEnabled,
     coverFullScreen: settings.coverFullScreen,
+    lowPowerMode: settings.lowPowerMode,
     displayMode: settings.displayMode,
     accessibilityTrusted: isAccessibilityTrusted(),
     toggleOverlay,
@@ -265,6 +266,7 @@ function createApplication() {
     toggleDebug: () => updateSettings({ ...settings, debugMode: !settings.debugMode }),
     toggleLightning: () => updateSettings({ ...settings, lightningEnabled: !settings.lightningEnabled }),
     toggleCoverFullScreen: () => updateSettings({ ...settings, coverFullScreen: !settings.coverFullScreen }),
+    toggleLowPowerMode: () => updateSettings({ ...settings, lowPowerMode: !settings.lowPowerMode }),
     setDisplayMode: (displayMode) => updateSettings({ ...settings, displayMode }),
     requestAccessibility: () => {
       requestAccessibilityPermission();

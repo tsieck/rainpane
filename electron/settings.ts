@@ -12,6 +12,7 @@ export interface WeatherSettings {
   fogEnabled: boolean;
   dropletsEnabled: boolean;
   reducedMotion: boolean;
+  lowPowerMode: boolean;
   debugMode: boolean;
   lightningEnabled: boolean;
   grainEnabled: boolean;
@@ -28,6 +29,7 @@ export const DEFAULT_SETTINGS: WeatherSettings = {
   fogEnabled: true,
   dropletsEnabled: true,
   reducedMotion: false,
+  lowPowerMode: true,
   debugMode: false,
   lightningEnabled: false,
   grainEnabled: true,
@@ -65,6 +67,7 @@ export function validateSettings(input: unknown, current: WeatherSettings): Weat
     fogEnabled: typeof candidate.fogEnabled === 'boolean' ? candidate.fogEnabled : current.fogEnabled,
     dropletsEnabled: typeof candidate.dropletsEnabled === 'boolean' ? candidate.dropletsEnabled : current.dropletsEnabled,
     reducedMotion: typeof candidate.reducedMotion === 'boolean' ? candidate.reducedMotion : current.reducedMotion,
+    lowPowerMode: typeof candidate.lowPowerMode === 'boolean' ? candidate.lowPowerMode : current.lowPowerMode,
     debugMode: typeof candidate.debugMode === 'boolean' ? candidate.debugMode : current.debugMode,
     lightningEnabled: typeof candidate.lightningEnabled === 'boolean' ? candidate.lightningEnabled : current.lightningEnabled,
     grainEnabled: typeof candidate.grainEnabled === 'boolean' ? candidate.grainEnabled : current.grainEnabled,

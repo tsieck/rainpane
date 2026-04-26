@@ -66,8 +66,9 @@ function makeDroplet(width: number, height: number, clearMask: Rect | null, sett
 
 export function syncDroplets(droplets: Droplet[], width: number, height: number, settings: WeatherSettings, clearMask: Rect | null) {
   const densityBoost = settings.mode === 'night-drive' ? 1.36 : settings.mode === 'greyglass' ? 0.9 : 1.12;
-  const target = settings.dropletsEnabled ? Math.floor((width * height * settings.dropletDensity * densityBoost) / 7200) : 0;
-  const cappedTarget = Math.min(target, settings.reducedMotion ? 110 : 280);
+  const powerScale = settings.lowPowerMode ? 0.64 : 1;
+  const target = settings.dropletsEnabled ? Math.floor((width * height * settings.dropletDensity * densityBoost * powerScale) / 7200) : 0;
+  const cappedTarget = Math.min(target, settings.reducedMotion ? 70 : settings.lowPowerMode ? 150 : 280);
 
   while (droplets.length < cappedTarget) {
     droplets.push(makeDroplet(width, height, clearMask, settings));

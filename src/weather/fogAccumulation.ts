@@ -14,10 +14,12 @@ export class FogAccumulator {
   private values = new Float32Array(0);
   private fogCanvas: HTMLCanvasElement | null = null;
   private fogCtx: CanvasRenderingContext2D | null = null;
+  private pendingDt = 0;
 
-  private resize(width: number, height: number) {
-    const nextCols = Math.max(24, Math.ceil(width / 34));
-    const nextRows = Math.max(16, Math.ceil(height / 34));
+  private resize(width: number, height: number, settings: WeatherSettings) {
+    const cellSize = settings.lowPowerMode ? 52 : 34;
+    const nextCols = Math.max(settings.lowPowerMode ? 18 : 24, Math.ceil(width / cellSize));
+    const nextRows = Math.max(settings.lowPowerMode ? 12 : 16, Math.ceil(height / cellSize));
 
     if (nextCols === this.cols && nextRows === this.rows) {
       return;
@@ -36,11 +38,22 @@ export class FogAccumulator {
   }
 
   update(width: number, height: number, dt: number, clearMask: Rect | null, settings: WeatherSettings) {
-    this.resize(width, height);
+    this.resize(width, height, settings);
 
     if (!settings.fogEnabled || !settings.fogAccumulationEnabled) {
       this.values.fill(0);
+      this.pendingDt = 0;
       return;
+    }
+
+    if (settings.lowPowerMode) {
+      this.pendingDt += dt;
+      if (this.pendingDt < 0.18) {
+        return;
+      }
+
+      dt = this.pendingDt;
+      this.pendingDt = 0;
     }
 
     const cellWidth = width / this.cols;
@@ -90,9 +103,10 @@ export class FogAccumulator {
       }
 
       ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.filter = 'blur(18px)';
-      ctx.drawImage(this.fogCanvas, -22, -22, width + 44, height + 44);
+      ctx.imageSmoothingQuality = settings.lowPowerMode ? 'medium' : 'high';
+      ctx.filter = `blur(${settings.lowPowerMode ? 14 : 18}px)`;
+      const bleed = settings.lowPowerMode ? 18 : 22;
+      ctx.drawImage(this.fogCanvas, -bleed, -bleed, width + bleed * 2, height + bleed * 2);
       ctx.filter = 'none';
     }
 

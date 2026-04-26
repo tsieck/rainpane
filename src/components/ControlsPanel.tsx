@@ -105,6 +105,14 @@ export function ControlsPanel({ settings, onChange, onReset }: ControlsPanelProp
         <label>
           <input
             type="checkbox"
+            checked={settings.lowPowerMode}
+            onChange={(event) => update({ lowPowerMode: event.currentTarget.checked })}
+          />
+          Low power
+        </label>
+        <label>
+          <input
+            type="checkbox"
             checked={settings.debugMode}
             onChange={(event) => update({ debugMode: event.currentTarget.checked })}
           />
