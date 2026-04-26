@@ -109,6 +109,20 @@ function isRainpaneWindow(bounds: ActiveWindowState['bounds']) {
   return appName === 'rainpane' || processName === 'rainpane' || title === 'rainpane' || title === 'rainpane demo';
 }
 
+function clearActiveWindowMask() {
+  const changed = activeWindowBounds !== null || activeWindowError !== undefined || activeWindowIsMoving;
+  activeWindowBounds = null;
+  activeWindowError = undefined;
+  activeWindowIsMoving = false;
+  lastWindowIdentity = 'rainpane';
+  lastWindowGeometry = 'null';
+  lastGeometryChangeAt = 0;
+
+  if (changed) {
+    broadcastActiveWindow();
+  }
+}
+
 function targetDisplays() {
   return settings.displayMode === 'all' ? screen.getAllDisplays() : [screen.getPrimaryDisplay()];
 }
@@ -235,6 +249,7 @@ async function pollActiveWindow() {
   try {
     const detectedBounds = await getActiveWindowBounds();
     if (isRainpaneWindow(detectedBounds)) {
+      clearActiveWindowMask();
       return;
     }
 
