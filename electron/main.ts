@@ -5,7 +5,7 @@ import { registerShortcuts } from './shortcuts.js';
 import { DEFAULT_SETTINGS, validateSettings, type WeatherSettings } from './settings.js';
 import { loadSettings, saveSettings } from './settingsPersistence.js';
 import { createRainpaneTray } from './tray.js';
-import { createDemoWindow, createOverlayWindow } from './windows.js';
+import { applyOverlayDisplayBounds, createDemoWindow, createOverlayWindow } from './windows.js';
 
 interface OverlayEntry {
   window: BrowserWindow;
@@ -189,8 +189,7 @@ function syncOverlayWindows() {
     const existing = overlayWindows.find((entry) => entry.display.id === display.id);
     if (existing) {
       existing.display = display;
-      const { x, y, width, height } = display.bounds;
-      existing.window.setBounds({ x, y, width, height });
+      applyOverlayDisplayBounds(existing.window, display);
       continue;
     }
 

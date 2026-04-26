@@ -84,7 +84,7 @@ function drawFrostCrystals(
   strength: number,
   settings: WeatherSettings,
 ) {
-  const count = settings.lowPowerMode ? 86 : 155;
+  const count = settings.renderBudget === 'conservative' ? 42 : settings.lowPowerMode ? 86 : 155;
   const edgeDepth = Math.min(Math.max(width, height) * 0.18, 240);
   const timePhase = Math.floor(elapsed / 9000);
 

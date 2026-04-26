@@ -17,9 +17,10 @@ export class FogAccumulator {
   private pendingDt = 0;
 
   private resize(width: number, height: number, settings: WeatherSettings) {
-    const cellSize = settings.lowPowerMode ? 52 : 34;
-    const nextCols = Math.max(settings.lowPowerMode ? 18 : 24, Math.ceil(width / cellSize));
-    const nextRows = Math.max(settings.lowPowerMode ? 12 : 16, Math.ceil(height / cellSize));
+    const conservative = settings.renderBudget === 'conservative';
+    const cellSize = conservative ? 76 : settings.lowPowerMode ? 52 : 34;
+    const nextCols = Math.max(conservative ? 12 : settings.lowPowerMode ? 18 : 24, Math.ceil(width / cellSize));
+    const nextRows = Math.max(conservative ? 8 : settings.lowPowerMode ? 12 : 16, Math.ceil(height / cellSize));
 
     if (nextCols === this.cols && nextRows === this.rows) {
       return;
@@ -46,9 +47,9 @@ export class FogAccumulator {
       return;
     }
 
-    if (settings.lowPowerMode) {
+    if (settings.lowPowerMode || settings.renderBudget === 'conservative') {
       this.pendingDt += dt;
-      if (this.pendingDt < 0.18) {
+      if (this.pendingDt < (settings.renderBudget === 'conservative' ? 0.32 : 0.18)) {
         return;
       }
 
@@ -103,9 +104,9 @@ export class FogAccumulator {
       }
 
       ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = settings.lowPowerMode ? 'medium' : 'high';
-      ctx.filter = `blur(${settings.lowPowerMode ? 14 : 18}px)`;
-      const bleed = settings.lowPowerMode ? 18 : 22;
+      ctx.imageSmoothingQuality = settings.lowPowerMode || settings.renderBudget === 'conservative' ? 'medium' : 'high';
+      ctx.filter = `blur(${settings.renderBudget === 'conservative' ? 12 : settings.lowPowerMode ? 14 : 18}px)`;
+      const bleed = settings.renderBudget === 'conservative' ? 16 : settings.lowPowerMode ? 18 : 22;
       ctx.drawImage(this.fogCanvas, -bleed, -bleed, width + bleed * 2, height + bleed * 2);
       ctx.filter = 'none';
     }

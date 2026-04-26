@@ -55,9 +55,9 @@ export function updateRainGust(state: RainGustState, dt: number, settings: Weath
 
 export function syncRainStreaks(streaks: RainStreak[], width: number, height: number, settings: WeatherSettings) {
   const densityBoost = settings.mode === 'storm-lock-in' ? 1.18 : settings.mode === 'greyglass' ? 0.78 : 1;
-  const powerScale = settings.lowPowerMode ? 0.62 : 1;
+  const powerScale = settings.renderBudget === 'conservative' ? 0.38 : settings.lowPowerMode ? 0.62 : 1;
   const target = settings.rainEnabled ? Math.floor((width * height * settings.rainIntensity * densityBoost * powerScale) / 1450) : 0;
-  const cappedTarget = Math.min(target, settings.reducedMotion ? 260 : settings.lowPowerMode ? 520 : 980);
+  const cappedTarget = Math.min(target, settings.reducedMotion ? 260 : settings.renderBudget === 'conservative' ? 320 : settings.lowPowerMode ? 520 : 980);
 
   while (streaks.length < cappedTarget) {
     streaks.push(makeStreak(width, height));

@@ -78,6 +78,19 @@ export function App() {
   const [runtimeState, setRuntimeState] = useState<RuntimeState>({ onBatteryPower: false, idleDeepeningActive: false });
   const preset = MODE_PRESETS[settings.mode];
   const effectiveSettings = useMemo(() => applyRuntimeSettings(settings, runtimeState), [settings, runtimeState]);
+  const overlaySettings = useMemo(() => {
+    const isWindowsOverlay = view === 'overlay' && window.rainpane?.platform === 'win32';
+    if (!isWindowsOverlay) {
+      return effectiveSettings;
+    }
+
+    return {
+      ...effectiveSettings,
+      lowPowerMode: true,
+      grainEnabled: false,
+      renderBudget: 'conservative' as const,
+    };
+  }, [effectiveSettings, view]);
 
   useEffect(() => {
     document.documentElement.dataset.view = view;
@@ -203,7 +216,7 @@ export function App() {
 
     return (
       <main className="overlay-shell" style={appStyle}>
-        <RainCanvas activeMask={effectiveMask} settings={effectiveSettings} />
+        <RainCanvas activeMask={effectiveMask} settings={overlaySettings} />
         {settings.debugMode ? <DebugMask state={activeWindowState} /> : null}
       </main>
     );

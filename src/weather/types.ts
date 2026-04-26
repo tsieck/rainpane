@@ -38,6 +38,7 @@ export interface WeatherSettings {
   lockInDimmingEnabled: boolean;
   idleDeepeningEnabled: boolean;
   displayMode: DisplayMode;
+  renderBudget?: 'standard' | 'conservative';
 }
 
 export interface ModePreset {

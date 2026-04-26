@@ -41,7 +41,7 @@ export function RainCanvas({ activeMask, settings }: RainCanvasProps) {
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       const currentSettings = settingsRef.current;
-      const dprCap = currentSettings.reducedMotion || currentSettings.lowPowerMode ? 1 : 1.5;
+      const dprCap = currentSettings.renderBudget === 'conservative' ? 0.75 : currentSettings.reducedMotion || currentSettings.lowPowerMode ? 1 : 1.5;
       const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
       const width = Math.max(1, rect.width);
       const height = Math.max(1, rect.height);
@@ -62,7 +62,16 @@ export function RainCanvas({ activeMask, settings }: RainCanvasProps) {
 
     const tick = (now: number) => {
       const currentSettings = settingsRef.current;
-      const targetFps = currentSettings.reducedMotion ? 16 : currentSettings.lowPowerMode ? 24 : 45;
+      const targetFps =
+        currentSettings.renderBudget === 'conservative'
+          ? currentSettings.reducedMotion
+            ? 12
+            : 18
+          : currentSettings.reducedMotion
+            ? 16
+            : currentSettings.lowPowerMode
+              ? 24
+              : 45;
       const frameInterval = 1000 / targetFps;
 
       if (document.visibilityState === 'hidden') {

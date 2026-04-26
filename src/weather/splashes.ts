@@ -7,12 +7,12 @@ function splashChance(settings: WeatherSettings) {
 
   const modeChance =
     settings.mode === 'storm-lock-in' ? 0.14 : settings.mode === 'night-drive' ? 0.1 : settings.mode === 'greyglass' ? 0.055 : 0.085;
-  const powerScale = settings.lowPowerMode ? 0.8 : 1;
+  const powerScale = settings.renderBudget === 'conservative' ? 0.45 : settings.lowPowerMode ? 0.8 : 1;
   return modeChance * powerScale * (0.55 + settings.rainIntensity * 0.9);
 }
 
 export function maybeSpawnSplash(splashes: RainSplash[], x: number, y: number, settings: WeatherSettings) {
-  const maxSplashes = settings.lowPowerMode ? 30 : 56;
+  const maxSplashes = settings.renderBudget === 'conservative' ? 14 : settings.lowPowerMode ? 30 : 56;
   if (splashes.length >= maxSplashes || Math.random() > splashChance(settings)) {
     return;
   }
