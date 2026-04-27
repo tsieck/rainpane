@@ -80,6 +80,16 @@ describe('active window detection helpers', () => {
     ).toEqual({ x: 20, y: 6, width: 400, height: 300 });
   });
 
+  it('maps Windows native coordinates into mixed-DPI display coordinates', () => {
+    expect(
+      mapWindowToDisplayMask(
+        { x: -1328, y: -299, width: 1024, height: 720, source: 'win32' },
+        { x: -1440, y: -832, width: 1440, height: 2560 },
+        { x: -1440, y: -401 },
+      ),
+    ).toEqual({ x: 112, y: 102, width: 1024, height: 720 });
+  });
+
   it('ignores windows outside the overlay display', () => {
     expect(
       mapWindowToDisplayMask(

@@ -238,17 +238,19 @@ function parseNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function mapWindowToDisplayMask(bounds: WindowBounds | null, displayBounds: Rect): Rect | null {
+export function mapWindowToDisplayMask(bounds: WindowBounds | null, displayBounds: Rect, nativeOrigin?: Pick<Rect, 'x' | 'y'>): Rect | null {
   if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
     return null;
   }
 
   const shadowInset = bounds.source === 'core-graphics' ? CORE_GRAPHICS_SHADOW_INSET : 0;
-  const sourceLeft = bounds.x + shadowInset;
+  const win32OffsetX = bounds.source === 'win32' && nativeOrigin ? displayBounds.x - nativeOrigin.x : 0;
+  const win32OffsetY = bounds.source === 'win32' && nativeOrigin ? displayBounds.y - nativeOrigin.y : 0;
+  const sourceLeft = bounds.x + shadowInset + win32OffsetX;
   const verticalOffset = bounds.source === 'core-graphics' ? CORE_GRAPHICS_VERTICAL_OFFSET : 0;
-  const sourceTop = bounds.y + shadowInset + verticalOffset;
-  const sourceRight = bounds.x + bounds.width - shadowInset;
-  const sourceBottom = bounds.y + bounds.height - shadowInset + verticalOffset;
+  const sourceTop = bounds.y + shadowInset + verticalOffset + win32OffsetY;
+  const sourceRight = bounds.x + bounds.width - shadowInset + win32OffsetX;
+  const sourceBottom = bounds.y + bounds.height - shadowInset + verticalOffset + win32OffsetY;
 
   const left = Math.max(sourceLeft, displayBounds.x);
   const top = Math.max(sourceTop, displayBounds.y);
