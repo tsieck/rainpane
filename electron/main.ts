@@ -121,7 +121,7 @@ function scheduleSettingsSave() {
 function activeWindowStateForDisplay(display: Display): ActiveWindowState {
   return {
     bounds: activeWindowBounds,
-    mask: mapWindowToDisplayMask(activeWindowBounds, display.bounds),
+    mask: mapWindowToDisplayMask(activeWindowBounds, display.bounds, display.nativeOrigin),
     error: activeWindowError,
     isMoving: activeWindowIsMoving,
   };
