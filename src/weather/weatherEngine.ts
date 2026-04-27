@@ -9,14 +9,16 @@ import { drawLightning, updateLightning, type LightningState } from './lightning
 import { drawMaskFeather, withInactiveClip } from './masks';
 import { drawPaneVignette } from './paneVignette';
 import { drawRain, syncRainStreaks, updateRainGust, type RainGustState } from './raindrops';
+import { drawSnow, syncSnowFlakes } from './snow';
 import { drawSplashes, maybeSpawnSplash } from './splashes';
-import type { Droplet, EdgeRunoffDrop, ModePreset, RainSplash, RainStreak, Rect, WeatherSettings } from './types';
+import type { Droplet, EdgeRunoffDrop, ModePreset, RainSplash, RainStreak, Rect, SnowFlake, WeatherSettings } from './types';
 
 export class WeatherEngine {
   private streaks: RainStreak[] = [];
   private droplets: Droplet[] = [];
   private splashes: RainSplash[] = [];
   private edgeDrops: EdgeRunoffDrop[] = [];
+  private snowFlakes: SnowFlake[] = [];
   private lightning: LightningState = { cooldown: 9, flash: 0 };
   private rainGust: RainGustState = { cooldown: 5, strength: 0, direction: 1 };
   private fogAccumulator = new FogAccumulator();
@@ -38,6 +40,7 @@ export class WeatherEngine {
     this.fogAccumulator.update(width, height, dt, activeMask, settings);
 
     syncRainStreaks(this.streaks, width, height, settings);
+    syncSnowFlakes(this.snowFlakes, width, height, settings);
     syncDroplets(this.droplets, width, height, settings, activeMask);
     syncEdgeRunoff(this.edgeDrops, activeMask, settings);
 
@@ -54,6 +57,7 @@ export class WeatherEngine {
       drawRain(ctx, this.streaks, width, height, dt, settings, preset.palette.rain, activeMask, this.rainGust, (x, y) => {
         maybeSpawnSplash(this.splashes, x, y, settings);
       });
+      drawSnow(ctx, this.snowFlakes, width, height, dt, settings, preset.palette.rain, activeMask);
       drawSplashes(ctx, this.splashes, dt, settings, preset.palette.rain);
       drawEdgeRunoff(ctx, this.edgeDrops, activeMask, dt, settings, preset.palette.rain);
       drawDroplets(ctx, this.droplets, width, height, dt, settings, activeMask);

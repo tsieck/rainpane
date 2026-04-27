@@ -8,7 +8,7 @@ export function drawPaneVignette(
   preset: ModePreset,
 ) {
   const strength =
-    settings.mode === 'storm-lock-in' ? 0.2 : settings.mode === 'night-drive' ? 0.17 : settings.mode === 'greyglass' ? 0.13 : 0.1;
+    settings.mode === 'storm-lock-in' ? 0.2 : settings.mode === 'winterglass' ? 0.12 : settings.mode === 'night-drive' ? 0.17 : settings.mode === 'greyglass' ? 0.13 : 0.1;
   const edge = Math.min(Math.max(width, height) * 0.12, 180);
 
   ctx.save();

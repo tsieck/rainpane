@@ -1,4 +1,4 @@
-export type WeatherMode = 'cozy-rain' | 'storm-lock-in' | 'night-drive' | 'greyglass';
+export type WeatherMode = 'cozy-rain' | 'storm-lock-in' | 'night-drive' | 'greyglass' | 'winterglass';
 export type DisplayMode = 'primary' | 'all';
 export type WeatherIntensity = 'mist' | 'rain' | 'downpour' | 'frosted';
 
@@ -50,7 +50,7 @@ export const DEFAULT_SETTINGS: WeatherSettings = {
   animationSpeed: 0.72,
 };
 
-const MODES = new Set<WeatherMode>(['cozy-rain', 'storm-lock-in', 'night-drive', 'greyglass']);
+const MODES = new Set<WeatherMode>(['cozy-rain', 'storm-lock-in', 'night-drive', 'greyglass', 'winterglass']);
 const DISPLAY_MODES = new Set<DisplayMode>(['primary', 'all']);
 
 function clamp(value: unknown, min: number, max: number, fallback: number): number {

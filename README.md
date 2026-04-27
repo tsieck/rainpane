@@ -80,7 +80,7 @@ App icons are generated procedurally from `scripts/generate-icons.mjs` into:
 - Active fake window stays clear.
 - Inactive windows and the desktop background receive procedural rain, fog, and droplets.
 - Live controls for rain intensity, fog intensity, droplet density, wind angle, animation speed, toggles, reduced motion, and low-power rendering.
-- Presets: Cozy Rain, Storm Lock-in, Night Drive, and Greyglass.
+- Presets: Cozy Rain, Storm Lock-in, Night Drive, Greyglass, and Winterglass.
 
 ## Phase 2 Features
 
@@ -176,6 +176,7 @@ Rainpane uses a local Swift/CoreGraphics helper before Accessibility/System Even
 ## Phase 4 Features
 
 - Mode-specific rain density, slant, opacity, fog tint, and inactive-area shadowing.
+- Winterglass atmosphere with quiet blue haze, stronger edge frost, sparse sleet, and slow procedural snow.
 - Layered rain depth with faint far rain, main rain, sparse foreground streaks, tapered strokes, occasional broken streaks, and subtle gust pulses.
 - Softer focus falloff around the active-window clear mask.
 - More natural droplets with slow drift, wobble, sliding, and mode-specific density.
@@ -256,6 +257,7 @@ src/
     masks.ts
     paneVignette.ts
     raindrops.ts
+    snow.ts
     splashes.ts
     types.ts
     weatherEngine.ts

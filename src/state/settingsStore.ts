@@ -93,6 +93,29 @@ export const MODE_PRESETS: Record<WeatherMode, ModePreset> = {
       lightning: 'rgba(245, 247, 245, 0.8)',
     },
   },
+  winterglass: {
+    id: 'winterglass',
+    label: 'Winterglass',
+    description: 'Sparse snow, quiet cold haze, soft frost.',
+    settings: {
+      rainIntensity: 0.12,
+      fogIntensity: 0.52,
+      dropletDensity: 0.24,
+      windAngle: -12,
+      animationSpeed: 0.48,
+    },
+    palette: {
+      desktopA: '#17222b',
+      desktopB: '#5e6f7b',
+      tint: 'rgba(118, 147, 170, 0.5)',
+      shadow: 'rgba(7, 14, 22, 0.45)',
+      panel: '#111b22',
+      accent: '#b8d7df',
+      rain: 'rgba(224, 240, 245, 0.82)',
+      fog: 'rgba(196, 218, 226, 0.76)',
+      lightning: 'rgba(238, 248, 255, 0.62)',
+    },
+  },
 };
 
 export const DEFAULT_SETTINGS: WeatherSettings = {

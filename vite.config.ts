@@ -8,7 +8,7 @@ export default defineConfig({
     port: 5173,
   },
   test: {
-    exclude: ['node_modules/**', 'dist/**', 'dist-electron/**'],
+    exclude: ['node_modules/**', '**/node_modules/**', 'dist/**', 'dist-electron/**', 'release/**'],
   },
   build: {
     outDir: 'dist',

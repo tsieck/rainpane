@@ -45,4 +45,9 @@ describe('electron settings validation', () => {
     expect(next.rainIntensity).toBe(1);
     expect(next.fogIntensity).toBe(0);
   });
+
+  it('accepts the Winterglass mode from persisted settings', () => {
+    const next = validateSettings({ ...DEFAULT_SETTINGS, mode: 'winterglass' }, DEFAULT_SETTINGS);
+    expect(next.mode).toBe('winterglass');
+  });
 });

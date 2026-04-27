@@ -6,6 +6,7 @@ const MODE_BUILD_SECONDS = {
   'storm-lock-in': 95,
   'night-drive': 150,
   greyglass: 185,
+  winterglass: 220,
 } satisfies Record<WeatherSettings['mode'], number>;
 
 export class FogAccumulator {

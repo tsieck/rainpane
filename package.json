@@ -1,6 +1,6 @@
 {
   "name": "rainpane",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "private": true,
   "description": "Ambient focus overlay prototype with procedural rain, fog, and droplets.",
   "author": "Rainpane",

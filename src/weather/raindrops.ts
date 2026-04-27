@@ -36,7 +36,7 @@ function makeStreak(width: number, height: number): RainStreak {
 }
 
 export function updateRainGust(state: RainGustState, dt: number, settings: WeatherSettings) {
-  if (settings.reducedMotion || settings.mode === 'greyglass') {
+  if (settings.reducedMotion || settings.mode === 'greyglass' || settings.mode === 'winterglass') {
     state.cooldown = 5;
     state.strength = 0;
     return;
@@ -54,7 +54,7 @@ export function updateRainGust(state: RainGustState, dt: number, settings: Weath
 }
 
 export function syncRainStreaks(streaks: RainStreak[], width: number, height: number, settings: WeatherSettings) {
-  const densityBoost = settings.mode === 'storm-lock-in' ? 1.18 : settings.mode === 'greyglass' ? 0.78 : 1;
+  const densityBoost = settings.mode === 'storm-lock-in' ? 1.18 : settings.mode === 'winterglass' ? 0.22 : settings.mode === 'greyglass' ? 0.78 : 1;
   const powerScale = settings.renderBudget === 'conservative' ? 0.38 : settings.lowPowerMode ? 0.62 : 1;
   const target = settings.rainEnabled ? Math.floor((width * height * settings.rainIntensity * densityBoost * powerScale) / 1450) : 0;
   const cappedTarget = Math.min(target, settings.reducedMotion ? 260 : settings.renderBudget === 'conservative' ? 320 : settings.lowPowerMode ? 520 : 980);
@@ -86,7 +86,7 @@ export function drawRain(
   const gustAngle = gust.strength * gust.direction * 22;
   const angleDegrees = Math.max(-78, Math.min(78, settings.windAngle + gustAngle));
   const angle = (angleDegrees * Math.PI) / 180;
-  const windX = Math.sin(angle) * (settings.mode === 'storm-lock-in' ? 420 : 320) * (1 + gust.strength);
+  const windX = Math.sin(angle) * (settings.mode === 'storm-lock-in' ? 420 : settings.mode === 'winterglass' ? 120 : 320) * (1 + gust.strength);
 
   ctx.save();
   ctx.lineCap = 'round';
@@ -105,9 +105,9 @@ export function drawRain(
       streak.y = -Math.random() * height * 0.25;
     }
 
-    const modeLength = settings.mode === 'night-drive' ? 1.38 : settings.mode === 'storm-lock-in' ? 1.24 : settings.mode === 'greyglass' ? 0.82 : 1;
+    const modeLength = settings.mode === 'night-drive' ? 1.38 : settings.mode === 'storm-lock-in' ? 1.24 : settings.mode === 'winterglass' ? 0.54 : settings.mode === 'greyglass' ? 0.82 : 1;
     const length = streak.length * modeLength * (1 + gust.strength * 0.24);
-    const sidewaysBoost = settings.mode === 'night-drive' ? 1.18 : settings.mode === 'storm-lock-in' ? 1.1 : 1;
+    const sidewaysBoost = settings.mode === 'night-drive' ? 1.18 : settings.mode === 'storm-lock-in' ? 1.1 : settings.mode === 'winterglass' ? 0.72 : 1;
     const directionX = Math.sin(angle) * sidewaysBoost;
     const directionY = Math.max(0.18, Math.cos(angle));
     const directionLength = Math.hypot(directionX, directionY);
@@ -124,7 +124,7 @@ export function drawRain(
     const alpha =
       streak.opacity *
       settings.rainIntensity *
-      (settings.mode === 'greyglass' ? 0.62 : 1) *
+      (settings.mode === 'winterglass' ? 0.34 : settings.mode === 'greyglass' ? 0.62 : 1) *
       depthAlpha;
     const gradient = ctx.createLinearGradient(streak.x, streak.y, endX, endY);
     gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');

@@ -12,6 +12,14 @@ describe('weather settings', () => {
     expect(next.rainIntensity).toBe(MODE_PRESETS['storm-lock-in'].settings.rainIntensity);
   });
 
+  it('includes Winterglass as a quiet snow atmosphere', () => {
+    const next = applyMode(DEFAULT_SETTINGS, 'winterglass');
+    expect(next.mode).toBe('winterglass');
+    expect(MODE_PRESETS.winterglass.label).toBe('Winterglass');
+    expect(next.animationSpeed).toBeLessThan(MODE_PRESETS['cozy-rain'].settings.animationSpeed);
+    expect(next.fogIntensity).toBeGreaterThan(MODE_PRESETS['cozy-rain'].settings.fogIntensity);
+  });
+
   it('keeps safety toggles when changing modes', () => {
     const next = applyMode({ ...DEFAULT_SETTINGS, reducedMotion: true, debugMode: true, lightningEnabled: true }, 'greyglass');
     expect(next.reducedMotion).toBe(true);

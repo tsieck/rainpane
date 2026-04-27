@@ -5,8 +5,8 @@ type DropletKind = Droplet['kind'];
 
 function chooseKind(settings: WeatherSettings): DropletKind {
   const roll = Math.random();
-  const paneChance = settings.mode === 'storm-lock-in' ? 0.025 : settings.mode === 'greyglass' ? 0.012 : 0.018;
-  const microChance = settings.mode === 'night-drive' ? 0.6 : 0.52;
+  const paneChance = settings.mode === 'winterglass' ? 0.006 : settings.mode === 'storm-lock-in' ? 0.025 : settings.mode === 'greyglass' ? 0.012 : 0.018;
+  const microChance = settings.mode === 'winterglass' ? 0.74 : settings.mode === 'night-drive' ? 0.6 : 0.52;
 
   if (roll < paneChance) {
     return 'pane';
@@ -65,7 +65,7 @@ function makeDroplet(width: number, height: number, clearMask: Rect | null, sett
 }
 
 export function syncDroplets(droplets: Droplet[], width: number, height: number, settings: WeatherSettings, clearMask: Rect | null) {
-  const densityBoost = settings.mode === 'night-drive' ? 1.36 : settings.mode === 'greyglass' ? 0.9 : 1.12;
+  const densityBoost = settings.mode === 'night-drive' ? 1.36 : settings.mode === 'winterglass' ? 0.78 : settings.mode === 'greyglass' ? 0.9 : 1.12;
   const powerScale = settings.renderBudget === 'conservative' ? 0.42 : settings.lowPowerMode ? 0.64 : 1;
   const target = settings.dropletsEnabled ? Math.floor((width * height * settings.dropletDensity * densityBoost * powerScale) / 7200) : 0;
   const cappedTarget = Math.min(target, settings.reducedMotion ? 70 : settings.renderBudget === 'conservative' ? 95 : settings.lowPowerMode ? 150 : 280);
@@ -118,7 +118,7 @@ export function drawDroplets(
 
     const fadeIn = Math.min(1, droplet.age / 2);
     const fadeOut = Math.max(0, 1 - droplet.age / droplet.lifetime);
-    const modeAlpha = settings.mode === 'night-drive' ? 1.24 : settings.mode === 'greyglass' ? 0.82 : 1;
+    const modeAlpha = settings.mode === 'night-drive' ? 1.24 : settings.mode === 'winterglass' ? 0.76 : settings.mode === 'greyglass' ? 0.82 : 1;
     const alpha = droplet.opacity * fadeIn * fadeOut * settings.dropletDensity * modeAlpha;
     const refractionAlpha = alpha * droplet.refraction;
 

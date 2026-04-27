@@ -11,7 +11,7 @@ export function drawLockInDimming(
     return;
   }
 
-  const modeStrength = settings.mode === 'storm-lock-in' ? 0.16 : settings.mode === 'night-drive' ? 0.1 : 0.055;
+  const modeStrength = settings.mode === 'storm-lock-in' ? 0.16 : settings.mode === 'winterglass' ? 0.08 : settings.mode === 'night-drive' ? 0.1 : 0.055;
   const alpha = modeStrength * (0.35 + settings.fogIntensity * 0.65);
 
   ctx.save();

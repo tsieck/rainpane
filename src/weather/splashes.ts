@@ -1,7 +1,7 @@
 import type { RainSplash, WeatherSettings } from './types';
 
 function splashChance(settings: WeatherSettings) {
-  if (settings.reducedMotion || !settings.rainEnabled || settings.rainIntensity <= 0.05) {
+  if (settings.reducedMotion || !settings.rainEnabled || settings.rainIntensity <= 0.05 || settings.mode === 'winterglass') {
     return 0;
   }
 

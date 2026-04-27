@@ -1,4 +1,4 @@
-export type WeatherMode = 'cozy-rain' | 'storm-lock-in' | 'night-drive' | 'greyglass';
+export type WeatherMode = 'cozy-rain' | 'storm-lock-in' | 'night-drive' | 'greyglass' | 'winterglass';
 export type DisplayMode = 'primary' | 'all';
 export type WeatherIntensity = 'mist' | 'rain' | 'downpour' | 'frosted';
 
@@ -83,6 +83,19 @@ export interface RainSplash {
   radius: number;
   height: number;
   opacity: number;
+  seed: number;
+}
+
+export interface SnowFlake {
+  layer: 'far' | 'mid' | 'near';
+  shape: 'speck' | 'crystal';
+  x: number;
+  y: number;
+  radius: number;
+  speed: number;
+  drift: number;
+  opacity: number;
+  wobble: number;
   seed: number;
 }
 
