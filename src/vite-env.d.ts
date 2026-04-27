@@ -14,6 +14,16 @@ interface RuntimeState {
   idleDeepeningActive: boolean;
 }
 
+interface UpdateCheckResult {
+  currentVersion: string;
+  latestVersion: string | null;
+  tagName: string | null;
+  releaseUrl: string | null;
+  downloadUrl: string | null;
+  assetName: string | null;
+  hasUpdate: boolean;
+}
+
 declare global {
   interface Window {
     rainpane?: {
@@ -22,6 +32,7 @@ declare global {
       getSettings: () => Promise<WeatherSettings>;
       getActiveWindow: () => Promise<ActiveWindowState>;
       getRuntimeState: () => Promise<RuntimeState>;
+      checkForUpdates: () => Promise<UpdateCheckResult>;
       updateSettings: (settings: WeatherSettings) => void;
       resetSettings: () => void;
       setOverlayVisible: (visible: boolean) => void;

@@ -1,10 +1,11 @@
-import { app, BrowserWindow, Menu, ipcMain, powerMonitor, screen, type Display } from 'electron';
+import { app, BrowserWindow, Menu, dialog, ipcMain, powerMonitor, screen, shell, type Display } from 'electron';
 import { getActiveWindowBounds, mapWindowToDisplayMask, type ActiveWindowState } from './activeWindow.js';
 import { isAccessibilityTrusted, openAccessibilitySettings, requestAccessibilityPermission } from './permissions.js';
 import { registerShortcuts } from './shortcuts.js';
 import { DEFAULT_SETTINGS, validateSettings, type WeatherSettings } from './settings.js';
 import { loadSettings, saveSettings } from './settingsPersistence.js';
 import { createRainpaneTray } from './tray.js';
+import { checkForGitHubUpdate, type UpdateCheckResult } from './updates.js';
 import { applyOverlayDisplayBounds, createDemoWindow, createOverlayWindow } from './windows.js';
 
 interface OverlayEntry {
@@ -276,6 +277,72 @@ function setOverlayVisible(visible: boolean) {
   trayController?.refresh();
 }
 
+async function checkForUpdates(showCurrentDialog = true): Promise<UpdateCheckResult> {
+  const result = await checkForGitHubUpdate(app.getVersion(), process.platform, process.arch);
+
+  if (result.hasUpdate) {
+    const detail = [
+      `Installed: ${result.currentVersion}`,
+      `Latest: ${result.tagName ?? result.latestVersion ?? 'Unknown'}`,
+      result.assetName ? `Download: ${result.assetName}` : 'Open the GitHub release to choose a download.',
+      process.platform === 'darwin'
+        ? 'After downloading, replace Rainpane in Applications.'
+        : 'After downloading, extract the ZIP and run the new Rainpane.exe.',
+    ].join('\n');
+
+    const { response } = await dialog.showMessageBox({
+      type: 'info',
+      title: 'Rainpane Update Available',
+      message: 'A new Rainpane release is available.',
+      detail,
+      buttons: ['Download Update', 'View Release', 'Later'],
+      defaultId: 0,
+      cancelId: 2,
+    });
+
+    if (response === 0 && result.downloadUrl) {
+      await shell.openExternal(result.downloadUrl);
+    } else if (response === 1 && result.releaseUrl) {
+      await shell.openExternal(result.releaseUrl);
+    }
+
+    return result;
+  }
+
+  if (showCurrentDialog) {
+    await dialog.showMessageBox({
+      type: 'info',
+      title: 'Rainpane Is Up to Date',
+      message: 'Rainpane is up to date.',
+      detail: `Installed: ${result.currentVersion}${result.tagName ? `\nLatest: ${result.tagName}` : ''}`,
+      buttons: ['OK'],
+    });
+  }
+
+  return result;
+}
+
+async function showUpdateCheckDialog() {
+  try {
+    await checkForUpdates(true);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Could not check for updates.';
+    await dialog.showMessageBox({
+      type: 'warning',
+      title: 'Update Check Failed',
+      message: 'Rainpane could not check for updates.',
+      detail: `${message}\n\nYou can still check manually at https://github.com/tsieck/rainpane/releases.`,
+      buttons: ['OK', 'Open Releases'],
+      defaultId: 0,
+      cancelId: 0,
+    }).then(({ response }) => {
+      if (response === 1) {
+        void shell.openExternal('https://github.com/tsieck/rainpane/releases');
+      }
+    });
+  }
+}
+
 async function pollActiveWindow() {
   try {
     const detectedBounds = await getActiveWindowBounds();
@@ -379,6 +446,9 @@ function createApplication() {
       trayController?.refresh();
     },
     openDemo: ensureDemoWindow,
+    checkForUpdates: () => {
+      void showUpdateCheckDialog();
+    },
     quit: () => {
       isQuitting = true;
       app.quit();
@@ -416,6 +486,12 @@ function createApplicationMenu() {
                 accelerator: 'CmdOrCtrl+Alt+R',
                 click: toggleOverlay,
               },
+              {
+                label: 'Check for Updates...',
+                click: () => {
+                  void showUpdateCheckDialog();
+                },
+              },
               { type: 'separator' },
               {
                 label: 'Quit Rainpane',
@@ -441,6 +517,12 @@ function createApplicationMenu() {
           label: 'Show / Hide Overlay',
           accelerator: process.platform === 'darwin' ? undefined : 'CmdOrCtrl+Alt+R',
           click: toggleOverlay,
+        },
+        {
+          label: 'Check for Updates...',
+          click: () => {
+            void showUpdateCheckDialog();
+          },
         },
       ],
     },
@@ -468,6 +550,7 @@ ipcMain.on('overlay:set-visible', (_event, visible: unknown) => {
 });
 ipcMain.handle('active-window:get', () => activeWindowStateForDisplay(screen.getPrimaryDisplay()));
 ipcMain.handle('runtime:get', () => currentRuntimeState());
+ipcMain.handle('updates:check', () => checkForUpdates(false));
 
 app.whenReady().then(async () => {
   settings = await loadSettings();

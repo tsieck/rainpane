@@ -17,7 +17,7 @@ This starts Vite and launches Electron with:
 
 - A transparent always-on-top click-through overlay window.
 - A normal Settings / Demo window.
-- A tray menu for showing/hiding Rainpane, toggling rain/fog, opening Demo Mode, and quitting.
+- A tray menu for showing/hiding Rainpane, toggling rain/fog, checking for updates, opening Demo Mode, and quitting.
 
 For a production-style app build:
 
@@ -89,6 +89,7 @@ App icons are generated procedurally from `scripts/generate-icons.mjs` into:
 - Overlay renders procedural rain/fog/droplets across the screen.
 - Settings / Demo window remains interactive and is not click-through.
 - Tray menu supports show/hide, rain toggle, fog toggle, opening settings/demo, and quit.
+- Manual update check opens the latest matching GitHub release download for the current platform.
 - Global shortcuts:
   - `CommandOrControl+Alt+R`: toggle overlay visibility
   - `CommandOrControl+Alt+F`: toggle fog
@@ -164,6 +165,13 @@ Rainpane uses a local Swift/CoreGraphics helper before Accessibility/System Even
 - Use `Displays > Primary display` to keep Rainpane on one display.
 - Use `Displays > All displays` to create one overlay per display.
 - If a display is connected/disconnected while Rainpane is running, restart the app if overlay bounds look stale.
+
+### Checking for updates
+
+- Use the tray menu or app menu item `Check for Updates...`.
+- Rainpane checks GitHub Releases and compares the latest release tag with the installed app version.
+- If an update is available, Rainpane opens the matching download for your platform.
+- Updates are manual in the current alpha: macOS users replace the app from the downloaded DMG/ZIP, and Windows users extract the new ZIP and run the new `Rainpane.exe`.
 
 ## Phase 4 Features
 

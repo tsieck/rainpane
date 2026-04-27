@@ -6,6 +6,15 @@ type SettingsListener = (settings: WeatherSettings) => void;
 type ActiveWindowListener = (state: ActiveWindowState) => void;
 type RuntimeState = { onBatteryPower: boolean; idleDeepeningActive: boolean };
 type RuntimeListener = (state: RuntimeState) => void;
+type UpdateCheckResult = {
+  currentVersion: string;
+  latestVersion: string | null;
+  tagName: string | null;
+  releaseUrl: string | null;
+  downloadUrl: string | null;
+  assetName: string | null;
+  hasUpdate: boolean;
+};
 
 const view = new URL(globalThis.location.href).searchParams.get('view') === 'overlay' ? 'overlay' : 'demo';
 
@@ -15,6 +24,7 @@ contextBridge.exposeInMainWorld('rainpane', {
   getSettings: () => ipcRenderer.invoke('settings:get') as Promise<WeatherSettings>,
   getActiveWindow: () => ipcRenderer.invoke('active-window:get') as Promise<ActiveWindowState>,
   getRuntimeState: () => ipcRenderer.invoke('runtime:get') as Promise<RuntimeState>,
+  checkForUpdates: () => ipcRenderer.invoke('updates:check') as Promise<UpdateCheckResult>,
   updateSettings: (settings: WeatherSettings) => ipcRenderer.send('settings:update', settings),
   resetSettings: () => ipcRenderer.send('settings:reset'),
   setOverlayVisible: (visible: boolean) => ipcRenderer.send('overlay:set-visible', visible),

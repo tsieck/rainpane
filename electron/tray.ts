@@ -23,6 +23,7 @@ interface TrayActions {
   setDisplayMode: (mode: 'primary' | 'all') => void;
   requestAccessibility: () => void;
   openDemo: () => void;
+  checkForUpdates: () => void;
   quit: () => void;
 }
 
@@ -138,6 +139,10 @@ export function createRainpaneTray(getActions: () => TrayActions) {
         label: 'Open Settings / Demo',
         accelerator: 'CmdOrCtrl+Alt+S',
         click: actions.openDemo,
+      },
+      {
+        label: 'Check for Updates...',
+        click: actions.checkForUpdates,
       },
       ...(process.platform === 'darwin'
         ? ([
