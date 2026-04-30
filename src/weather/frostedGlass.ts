@@ -200,7 +200,7 @@ function drawFrostCrystals(
     ctx.moveTo(x - Math.cos(angle) * length * 0.5, y - Math.sin(angle) * length * 0.5);
     ctx.lineTo(x + Math.cos(angle) * length * 0.5, y + Math.sin(angle) * length * 0.5);
 
-    if (!settings.lowPowerMode && hash(index * 19.9) > 0.68) {
+    if (settings.mode !== 'winterglass' && !settings.lowPowerMode && hash(index * 19.9) > 0.68) {
       const branchAngle = angle + (hash(index * 23.1) > 0.5 ? 1 : -1) * 0.8;
       ctx.moveTo(x, y);
       ctx.lineTo(x + Math.cos(branchAngle) * length * 0.35, y + Math.sin(branchAngle) * length * 0.35);

@@ -17,6 +17,11 @@ export class FogAccumulator {
   private fogCtx: CanvasRenderingContext2D | null = null;
   private pendingDt = 0;
 
+  reset() {
+    this.values.fill(0);
+    this.pendingDt = 0;
+  }
+
   private resize(width: number, height: number, settings: WeatherSettings) {
     const conservative = settings.renderBudget === 'conservative';
     const cellSize = conservative ? 76 : settings.lowPowerMode ? 52 : 34;
@@ -43,8 +48,7 @@ export class FogAccumulator {
     this.resize(width, height, settings);
 
     if (!settings.fogEnabled || !settings.fogAccumulationEnabled) {
-      this.values.fill(0);
-      this.pendingDt = 0;
+      this.reset();
       return;
     }
 

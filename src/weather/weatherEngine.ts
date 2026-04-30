@@ -23,6 +23,25 @@ export class WeatherEngine {
   private rainGust: RainGustState = { cooldown: 5, strength: 0, direction: 1 };
   private fogAccumulator = new FogAccumulator();
   private elapsed = 0;
+  private frostElapsed = 0;
+  private accumulationKey = '';
+
+  private syncAccumulationState(settings: WeatherSettings) {
+    const nextKey = [
+      settings.mode,
+      settings.fogEnabled,
+      settings.fogAccumulationEnabled,
+      settings.reducedMotion,
+    ].join(':');
+
+    if (nextKey === this.accumulationKey) {
+      return;
+    }
+
+    this.accumulationKey = nextKey;
+    this.frostElapsed = 0;
+    this.fogAccumulator.reset();
+  }
 
   render(
     ctx: CanvasRenderingContext2D,
@@ -34,6 +53,11 @@ export class WeatherEngine {
     preset: ModePreset,
   ) {
     this.elapsed += dt * 1000;
+    this.syncAccumulationState(settings);
+    if (settings.fogEnabled && settings.fogAccumulationEnabled && !settings.reducedMotion) {
+      this.frostElapsed += dt * 1000;
+    }
+
     ctx.clearRect(0, 0, width, height);
     updateLightning(this.lightning, dt, settings);
     updateRainGust(this.rainGust, dt, settings);
@@ -52,7 +76,7 @@ export class WeatherEngine {
       drawPaneVignette(ctx, width, height, settings, preset);
       drawLockInDimming(ctx, width, height, settings, preset);
       this.fogAccumulator.draw(ctx, width, height, settings, preset);
-      drawFrostedGlass(ctx, width, height, this.elapsed, settings, preset);
+      drawFrostedGlass(ctx, width, height, this.frostElapsed, settings, preset);
       drawLightning(ctx, width, height, this.lightning, preset.palette.lightning);
       drawRain(ctx, this.streaks, width, height, dt, settings, preset.palette.rain, activeMask, this.rainGust, (x, y) => {
         maybeSpawnSplash(this.splashes, x, y, settings);

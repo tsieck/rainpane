@@ -58,6 +58,48 @@ macOS and Windows package output goes to `/tmp/rainpane-release/`. The temporary
 
 The current package config uses ad-hoc macOS signing for local alpha builds. macOS may still warn that the app is from an unidentified developer because it is not Developer ID signed or notarized yet. Windows builds are unsigned ZIP artifacts for early local testing.
 
+For a local unsigned macOS build after signing is configured:
+
+```bash
+npm run dist:mac:unsigned
+```
+
+### Signed macOS Release Setup
+
+Rainpane's release macOS build is configured for Developer ID signing, hardened runtime, and notarization. Keep certificates and Apple API keys out of git.
+
+1. Install a `Developer ID Application` certificate in Keychain.
+2. Confirm it is visible:
+
+```bash
+security find-identity -v -p codesigning
+```
+
+3. Create an App Store Connect API key and store the `.p8` outside the repo. `AuthKey_*.p8` files are ignored as an extra guard.
+4. Export notarization credentials before building:
+
+```bash
+export APPLE_API_KEY="/absolute/path/to/AuthKey_XXXXXXXXXX.p8"
+export APPLE_API_KEY_ID="XXXXXXXXXX"
+export APPLE_API_ISSUER="00000000-0000-0000-0000-000000000000"
+```
+
+5. Build signed and notarized macOS artifacts:
+
+```bash
+npm run dist:mac
+```
+
+6. Verify the packaged app:
+
+```bash
+codesign --verify --deep --strict --verbose=2 /tmp/rainpane-release/mac-arm64/Rainpane.app
+spctl --assess --type execute --verbose /tmp/rainpane-release/mac-arm64/Rainpane.app
+xcrun stapler validate /tmp/rainpane-release/mac-arm64/Rainpane.app
+```
+
+If no Developer ID identity is installed, `npm run dist:mac` may fall back to ad-hoc signing on Apple Silicon and notarization will be skipped. Use `npm run dist:mac:unsigned` intentionally for local-only builds.
+
 App icons are generated procedurally from `scripts/generate-icons.mjs` into:
 
 - `build/icon.svg`

@@ -1,6 +1,6 @@
 {
   "name": "rainpane",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "private": true,
   "description": "Ambient focus overlay prototype with procedural rain, fog, and droplets.",
   "author": "Rainpane",
@@ -15,6 +15,7 @@
     "package": "npm run generate:icons && npm run clean:electron-xattrs && npm run build && electron-builder --dir --config.directories.output=/tmp/rainpane-release",
     "dist": "npm run dist:mac",
     "dist:mac": "npm run generate:icons && npm run clean:electron-xattrs && npm run build && electron-builder --mac --config.directories.output=/tmp/rainpane-release",
+    "dist:mac:unsigned": "npm run generate:icons && npm run clean:electron-xattrs && npm run build && electron-builder --mac --config.directories.output=/tmp/rainpane-release --config.mac.identity=- --config.mac.notarize=false",
     "dist:win": "npm run generate:icons && npm run build && electron-builder --win zip --x64 --config.directories.output=/tmp/rainpane-release",
     "dist:win:arm64": "npm run generate:icons && npm run build && electron-builder --win zip --arm64 --config.directories.output=/tmp/rainpane-release",
     "preview": "vite preview",
@@ -59,8 +60,14 @@
         "dmg",
         "zip"
       ],
-      "identity": "-",
-      "hardenedRuntime": false
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+      "notarize": true,
+      "extendInfo": {
+        "NSAppleEventsUsageDescription": "Rainpane uses Apple Events only as a fallback to read the frontmost window's title, position, and size for the clear focus pane. It does not read or record window contents."
+      }
     },
     "win": {
       "icon": "build/icon.ico",
