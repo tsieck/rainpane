@@ -90,49 +90,13 @@ npm run dist:win:arm64
 
 macOS and Windows package output goes to `/tmp/rainpane-release/`. The temporary output path avoids macOS File Provider metadata that can break ad-hoc code signing when the project lives under Documents or another synced folder, and keeps generated release archives out of the repo.
 
-macOS release builds are configured for Developer ID signing, hardened runtime, and notarization. Windows builds are unsigned ZIP artifacts for now.
+macOS release builds are Developer ID signed and notarized by the maintainer. Windows builds are unsigned ZIP artifacts for now.
 
-For a local unsigned macOS build after signing is configured:
+For a local unsigned macOS build:
 
 ```bash
 npm run dist:mac:unsigned
 ```
-
-### Signed macOS Release Setup
-
-Rainpane's release macOS build is configured for Developer ID signing, hardened runtime, and notarization. Keep certificates and Apple API keys out of git.
-
-1. Install a `Developer ID Application` certificate in Keychain.
-2. Confirm it is visible:
-
-```bash
-security find-identity -v -p codesigning
-```
-
-3. Create an App Store Connect API key and store the `.p8` outside the repo. `AuthKey_*.p8` files are ignored as an extra guard.
-4. Export notarization credentials before building:
-
-```bash
-export APPLE_API_KEY="/absolute/path/to/AuthKey_XXXXXXXXXX.p8"
-export APPLE_API_KEY_ID="XXXXXXXXXX"
-export APPLE_API_ISSUER="00000000-0000-0000-0000-000000000000"
-```
-
-5. Build signed and notarized macOS artifacts:
-
-```bash
-npm run dist:mac
-```
-
-6. Verify the packaged app:
-
-```bash
-codesign --verify --deep --strict --verbose=2 /tmp/rainpane-release/mac-arm64/Rainpane.app
-spctl --assess --type execute --verbose /tmp/rainpane-release/mac-arm64/Rainpane.app
-xcrun stapler validate /tmp/rainpane-release/mac-arm64/Rainpane.app
-```
-
-If no Developer ID identity is installed, `npm run dist:mac` may fall back to ad-hoc signing on Apple Silicon and notarization will be skipped. Use `npm run dist:mac:unsigned` intentionally for local-only builds.
 
 App icons are generated procedurally from `scripts/generate-icons.mjs` into:
 
