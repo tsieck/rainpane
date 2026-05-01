@@ -3,6 +3,7 @@
   "version": "0.1.11",
   "private": true,
   "description": "Ambient focus overlay prototype with procedural rain, fog, and droplets.",
+  "license": "MIT",
   "author": "Rainpane",
   "main": "dist-electron/main.js",
   "type": "module",

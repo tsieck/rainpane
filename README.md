@@ -313,3 +313,7 @@ src/
 - Windows release validation on a real Windows machine.
 - More multi-monitor hardening for hot-plug/display-layout changes.
 - Optional future focus refinements that remain purely visual.
+
+## License
+
+Rainpane is released under the [MIT License](LICENSE).
