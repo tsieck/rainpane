@@ -1,12 +1,46 @@
 # Rainpane
 
-Rainpane is an ambient focus overlay for the desktop. Rain, droplets, fog, and glassy atmospheric effects appear over the parts of the desktop that are not currently focused, while the active window stays clear.
+Make everything but the task fade into rain.
 
-It is intentionally passive: no timers, blockers, scores, streaks, accounts, notifications, cloud sync, or productivity guilt.
+Rainpane is a quiet desktop overlay that makes your computer feel like a rainy windowpane. The app you are using stays clear. Everything else settles into rain, fog, droplets, frost, and soft atmospheric glass.
 
-Rainpane is built with Electron, React, TypeScript, Vite, and procedural HTML Canvas rendering. No external visual assets are used for the weather effects.
+It is not a productivity timer, app blocker, habit tracker, or focus cop. It just makes the unfocused parts of your desktop visually fall away so the current task feels calmer and easier to stay with.
 
-## Run
+## Try It
+
+Download the latest build from [GitHub Releases](https://github.com/tsieck/rainpane/releases/latest).
+
+- macOS Apple Silicon: use the `.dmg` for the cleanest install.
+- macOS builds are Developer ID signed and notarized.
+- Windows x64: use the `.zip`, extract it, and run `Rainpane.exe`.
+- Windows builds are unsigned for now, so SmartScreen may warn on first launch.
+
+## What It Does
+
+- Keeps the active window visually clear.
+- Covers inactive windows and desktop background with procedural rain, fog, droplets, frost, grain, and occasional subtle weather detail.
+- Runs as a transparent, click-through overlay so normal desktop clicks still go to the apps underneath.
+- Offers calm presets like Cozy Rain, Night Drive, Greyglass, Storm Lock-in, and Winterglass.
+- Saves settings locally and works without an account, cloud sync, analytics, or subscriptions.
+- Includes a Demo Mode with fake draggable windows so you can tune the look without relying on native window detection.
+
+## Privacy
+
+Rainpane is local-only. It does not capture your screen, read window contents, upload data, or use cloud services.
+
+For the active-window clear mask, Rainpane only needs basic window metadata: bounds, title, and process/app name when available. On macOS, that may require Accessibility permission. On Windows, it uses foreground-window metadata from local Win32 APIs.
+
+## The Vibe
+
+- **Cozy Rain:** soft rain, light haze, easy background motion.
+- **Storm Lock-in:** heavier weather and stronger inactive-area dimming.
+- **Night Drive:** darker blue-grey rain with diagonal streaks and moody contrast.
+- **Greyglass:** minimal color, slow droplets, premium haze.
+- **Winterglass:** sparse snow, quiet frost build-up, colder glass texture.
+
+All visuals are procedural canvas effects. No external weather art assets are used.
+
+## Development
 
 ```bash
 npm install
@@ -26,7 +60,7 @@ npm run build
 npm start
 ```
 
-## Package
+## Build & Release
 
 Create an unpacked local app:
 
@@ -56,7 +90,7 @@ npm run dist:win:arm64
 
 macOS and Windows package output goes to `/tmp/rainpane-release/`. The temporary output path avoids macOS File Provider metadata that can break ad-hoc code signing when the project lives under Documents or another synced folder, and keeps generated release archives out of the repo.
 
-The current package config uses ad-hoc macOS signing for local alpha builds. macOS may still warn that the app is from an unidentified developer because it is not Developer ID signed or notarized yet. Windows builds are unsigned ZIP artifacts for early local testing.
+macOS release builds are configured for Developer ID signing, hardened runtime, and notarization. Windows builds are unsigned ZIP artifacts for now.
 
 For a local unsigned macOS build after signing is configured:
 
@@ -107,14 +141,14 @@ App icons are generated procedurally from `scripts/generate-icons.mjs` into:
 - `build/icon.icns`
 - `build/icon.ico`
 
-## Current Platform Support
+## Platform Support
 
 - macOS: active-window clear mask is implemented with CoreGraphics plus Accessibility fallback.
 - Windows: active-window clear mask is implemented with PowerShell-hosted Win32 foreground-window APIs.
 - Linux: overlay rendering architecture is present, but active-window detection is not implemented yet.
 - Multi-monitor: primary-display mode and all-displays mode are implemented.
 
-## Phase 1 Features
+## Demo Mode
 
 - Fake desktop scene with Browser, Music, and Notes windows.
 - Click a fake window to make it active.
@@ -124,7 +158,7 @@ App icons are generated procedurally from `scripts/generate-icons.mjs` into:
 - Live controls for rain intensity, fog intensity, droplet density, wind angle, animation speed, toggles, reduced motion, and low-power rendering.
 - Presets: Cozy Rain, Storm Lock-in, Night Drive, Greyglass, and Winterglass.
 
-## Phase 2 Features
+## Desktop Overlay
 
 - Transparent frameless overlay window covering the primary display.
 - Overlay is always-on-top and click-through.
@@ -137,7 +171,7 @@ App icons are generated procedurally from `scripts/generate-icons.mjs` into:
   - `CommandOrControl+Alt+F`: toggle fog
   - `CommandOrControl+Alt+S`: open Settings / Demo
 
-## Phase 3 Features
+## Active Window Masking
 
 - Main-process active-window detection interface:
   - `getActiveWindowBounds(): Promise<WindowBounds | null>`
@@ -215,7 +249,7 @@ Rainpane uses a local Swift/CoreGraphics helper before Accessibility/System Even
 - If an update is available, Rainpane opens the matching download for your platform.
 - Updates are manual in the current alpha: macOS users replace the app from the downloaded DMG/ZIP, and Windows users extract the new ZIP and run the new `Rainpane.exe`.
 
-## Phase 4 Features
+## Weather Engine
 
 - Mode-specific rain density, slant, opacity, fog tint, and inactive-area shadowing.
 - Winterglass atmosphere with quiet blue haze, stronger edge frost, sparse sleet, and slow procedural snow.
@@ -228,14 +262,14 @@ Rainpane uses a local Swift/CoreGraphics helper before Accessibility/System Even
 - Grain and lightning are procedural canvas effects; no external assets are used.
 - Low Power Mode is enabled by default to cap canvas frame rate, reduce Retina pixel work, and lower rain/droplet/fog simulation density for laptop-friendly background use.
 
-## Phase 5 Features
+## Settings
 
 - Settings are saved automatically to local JSON under Electron `userData`.
 - Mode, intensities, toggles, debug state, reduced motion, low-power mode, grain, lightning, display mode, cover-full-screen, moving-window behavior, and fog build-up survive restarts.
 - Settings / Demo includes `Reset to defaults`.
 - Fog build-up is enabled by default: inactive areas start lightly hazed and slowly accumulate toward a frosted-glass look, while the active-window mask fades back toward clear.
 
-## Phase 6 Features
+## Multi-Monitor
 
 - Display mode setting:
   - `Primary display`
@@ -245,7 +279,7 @@ Rainpane uses a local Swift/CoreGraphics helper before Accessibility/System Even
 - `Cover full screen` ignores the active-window clear mask for a fully rainy cozy mode.
 - `Full rain while moving` temporarily hides the clear mask while detected window bounds are changing, avoiding a laggy pane-following effect while dragging or resizing windows.
 
-## Phase 7 Features
+## Focus-Friendly Details
 
 - Lock-in dimming adds subtle inactive-area darkening, with stronger treatment in Storm Lock-in and Night Drive.
 - These features are purely visual. Rainpane still does not block apps, score focus, run timers, or send notifications.
