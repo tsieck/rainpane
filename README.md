@@ -6,6 +6,10 @@ Rainpane is a quiet desktop overlay that makes your computer feel like a rainy w
 
 It is not a productivity timer, app blocker, habit tracker, or focus cop. It just makes the unfocused parts of your desktop visually fall away so the current task feels calmer and easier to stay with.
 
+## See It In Motion
+
+[Watch the focus pane demo](https://sieck.dev/media/rainpane-focus.mp4)
+
 ## Try It
 
 Download the latest build from [GitHub Releases](https://github.com/tsieck/rainpane/releases/latest).
