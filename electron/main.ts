@@ -32,7 +32,7 @@ let lastGeometryChangeAt = 0;
 let activeWindowPoll: NodeJS.Timeout | null = null;
 let saveSettingsTimer: NodeJS.Timeout | null = null;
 let runtimeMonitor: NodeJS.Timeout | null = null;
-let overlayVisibleBeforeDemoFocus = false;
+let overlayEnabled = true;
 const ACTIVE_WINDOW_POLL_MS = 125;
 const IDLE_DEEPENING_SECONDS = 90;
 const INTENSITY_PRESETS = {
@@ -158,14 +158,46 @@ function targetDisplays() {
   return settings.displayMode === 'all' ? screen.getAllDisplays() : [screen.getPrimaryDisplay()];
 }
 
+function demoHasFocus() {
+  return Boolean(demoWindow && !demoWindow.isDestroyed() && demoWindow.isFocused());
+}
+
+function shouldShowOverlay() {
+  return overlayEnabled && !demoHasFocus();
+}
+
+function applyOverlayVisibility() {
+  const visible = shouldShowOverlay();
+  for (const entry of overlayWindows) {
+    if (entry.window.isDestroyed()) {
+      continue;
+    }
+
+    if (visible) {
+      entry.window.showInactive();
+    } else {
+      entry.window.hide();
+    }
+  }
+  trayController?.refresh();
+}
+
 function createOverlayForDisplay(display: Display) {
-  const overlayWindow = createOverlayWindow(display);
+  const overlayWindow = createOverlayWindow(display, false);
   const entry: OverlayEntry = { window: overlayWindow, display };
 
   overlayWindow.webContents.once('did-finish-load', () => {
     overlayWindow.webContents.send('settings:changed', settings);
     overlayWindow.webContents.send('runtime:changed', currentRuntimeState());
     overlayWindow.webContents.send('active-window:changed', activeWindowStateForDisplay(display));
+  });
+  overlayWindow.once('ready-to-show', () => {
+    if (shouldShowOverlay()) {
+      overlayWindow.showInactive();
+    } else {
+      overlayWindow.hide();
+    }
+    trayController?.refresh();
   });
   overlayWindow.on('closed', () => {
     overlayWindows = overlayWindows.filter((candidate) => candidate.window !== overlayWindow);
@@ -219,28 +251,18 @@ function ensureDemoWindow() {
 
     event.preventDefault();
     demoWindow?.hide();
+    applyOverlayVisibility();
   });
 
   demoWindow.on('closed', () => {
     demoWindow = null;
+    applyOverlayVisibility();
   });
   demoWindow.on('focus', () => {
-    overlayVisibleBeforeDemoFocus = overlayWindows.some((entry) => entry.window.isVisible());
-    for (const entry of overlayWindows) {
-      entry.window.hide();
-    }
-    trayController?.refresh();
+    applyOverlayVisibility();
   });
   demoWindow.on('blur', () => {
-    if (!overlayVisibleBeforeDemoFocus) {
-      return;
-    }
-
-    for (const entry of overlayWindows) {
-      entry.window.showInactive();
-    }
-    overlayVisibleBeforeDemoFocus = false;
-    trayController?.refresh();
+    applyOverlayVisibility();
   });
   demoWindow.once('ready-to-show', () => {
     activateRainpane();
@@ -252,29 +274,14 @@ function ensureDemoWindow() {
 
 function toggleOverlay() {
   syncOverlayWindows();
-  const visible = overlayWindows.some((entry) => entry.window.isVisible());
-  if (visible) {
-    for (const entry of overlayWindows) {
-      entry.window.hide();
-    }
-  } else {
-    for (const entry of overlayWindows) {
-      entry.window.showInactive();
-    }
-  }
-  trayController?.refresh();
+  overlayEnabled = !overlayEnabled;
+  applyOverlayVisibility();
 }
 
 function setOverlayVisible(visible: boolean) {
   syncOverlayWindows();
-  for (const entry of overlayWindows) {
-    if (visible) {
-      entry.window.showInactive();
-    } else {
-      entry.window.hide();
-    }
-  }
-  trayController?.refresh();
+  overlayEnabled = visible;
+  applyOverlayVisibility();
 }
 
 async function checkForUpdates(showCurrentDialog = true): Promise<UpdateCheckResult> {
@@ -420,7 +427,7 @@ function createApplication() {
   ensureDemoWindow();
 
   trayController = createRainpaneTray(() => ({
-    showOverlay: overlayWindows.some((entry) => entry.window.isVisible()),
+    showOverlay: overlayEnabled,
     rainEnabled: settings.rainEnabled,
     fogEnabled: settings.fogEnabled,
     debugMode: settings.debugMode,

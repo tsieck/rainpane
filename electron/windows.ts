@@ -26,7 +26,7 @@ function loadRenderer(window: BrowserWindow, view: RainpaneView, query: Record<s
   });
 }
 
-export function createOverlayWindow(display: Display = screen.getPrimaryDisplay()) {
+export function createOverlayWindow(display: Display = screen.getPrimaryDisplay(), showOnReady = true) {
   const { x, y, width, height } = display.bounds;
 
   const overlayWindow = new BrowserWindow({
@@ -62,7 +62,9 @@ export function createOverlayWindow(display: Display = screen.getPrimaryDisplay(
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
   overlayWindow.once('ready-to-show', () => {
-    overlayWindow.showInactive();
+    if (showOnReady) {
+      overlayWindow.showInactive();
+    }
   });
 
   loadRenderer(overlayWindow, 'overlay', { displayId: String(display.id) });

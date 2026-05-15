@@ -6,7 +6,7 @@ import { drawLockInDimming } from './focusEffects';
 import { drawFrostedGlass } from './frostedGlass';
 import { drawGrain } from './grain';
 import { drawLightning, updateLightning, type LightningState } from './lightning';
-import { drawMaskFeather, withInactiveClip } from './masks';
+import { createFocusQuietMask, drawMaskFeather, withInactiveClip } from './masks';
 import { drawPaneVignette } from './paneVignette';
 import { drawRain, syncRainStreaks, updateRainGust, type RainGustState } from './raindrops';
 import { drawSnow, syncSnowFlakes } from './snow';
@@ -25,6 +25,15 @@ export class WeatherEngine {
   private elapsed = 0;
   private frostElapsed = 0;
   private accumulationKey = '';
+
+  private focusQuietMargin(width: number, height: number, settings: WeatherSettings) {
+    const shortestEdge = Math.min(width, height);
+    const base = Math.min(54, Math.max(22, shortestEdge * 0.045));
+    const modeScale = settings.mode === 'winterglass' ? 1.24 : settings.mode === 'storm-lock-in' ? 1.14 : 1;
+    const atmosphere = Math.max(settings.rainIntensity, settings.fogIntensity, settings.dropletDensity);
+
+    return base * modeScale * (0.82 + atmosphere * 0.36);
+  }
 
   private syncAccumulationState(settings: WeatherSettings) {
     const nextKey = [
@@ -68,6 +77,13 @@ export class WeatherEngine {
     syncDroplets(this.droplets, width, height, settings, activeMask);
     syncEdgeRunoff(this.edgeDrops, activeMask, settings);
 
+    const focusQuietMask = createFocusQuietMask(
+      activeMask,
+      width,
+      height,
+      this.focusQuietMargin(width, height, settings),
+    );
+
     withInactiveClip(ctx, width, height, activeMask, () => {
       const fogSettings = settings.fogAccumulationEnabled
         ? { ...settings, fogIntensity: settings.fogIntensity * 0.36 }
@@ -76,15 +92,18 @@ export class WeatherEngine {
       drawPaneVignette(ctx, width, height, settings, preset);
       drawLockInDimming(ctx, width, height, settings, preset);
       this.fogAccumulator.draw(ctx, width, height, settings, preset);
-      drawFrostedGlass(ctx, width, height, this.frostElapsed, settings, preset);
       drawLightning(ctx, width, height, this.lightning, preset.palette.lightning);
-      drawRain(ctx, this.streaks, width, height, dt, settings, preset.palette.rain, activeMask, this.rainGust, (x, y) => {
+    });
+
+    withInactiveClip(ctx, width, height, focusQuietMask, () => {
+      drawFrostedGlass(ctx, width, height, this.frostElapsed, settings, preset);
+      drawRain(ctx, this.streaks, width, height, dt, settings, preset.palette.rain, focusQuietMask, this.rainGust, (x, y) => {
         maybeSpawnSplash(this.splashes, x, y, settings);
       });
-      drawSnow(ctx, this.snowFlakes, width, height, dt, settings, preset.palette.rain, activeMask);
+      drawSnow(ctx, this.snowFlakes, width, height, dt, settings, preset.palette.rain, focusQuietMask);
       drawSplashes(ctx, this.splashes, dt, settings, preset.palette.rain);
       drawEdgeRunoff(ctx, this.edgeDrops, activeMask, dt, settings, preset.palette.rain);
-      drawDroplets(ctx, this.droplets, width, height, dt, settings, activeMask);
+      drawDroplets(ctx, this.droplets, width, height, dt, settings, focusQuietMask);
       drawGrain(ctx, width, height, this.elapsed, settings);
     });
 

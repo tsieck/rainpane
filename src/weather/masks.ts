@@ -1,5 +1,32 @@
 import type { Rect } from './types';
 
+export function expandRect(rect: Rect, margin: number, bounds?: Pick<Rect, 'width' | 'height'>): Rect {
+  const x = Math.max(0, rect.x - margin);
+  const y = Math.max(0, rect.y - margin);
+  const right = bounds ? Math.min(bounds.width, rect.x + rect.width + margin) : rect.x + rect.width + margin;
+  const bottom = bounds ? Math.min(bounds.height, rect.y + rect.height + margin) : rect.y + rect.height + margin;
+
+  return {
+    x,
+    y,
+    width: Math.max(0, right - x),
+    height: Math.max(0, bottom - y),
+  };
+}
+
+export function createFocusQuietMask(
+  clearMask: Rect | null,
+  width: number,
+  height: number,
+  margin: number,
+): Rect | null {
+  if (!clearMask || margin <= 0) {
+    return clearMask;
+  }
+
+  return expandRect(clearMask, margin, { width, height });
+}
+
 export function rectsIntersect(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }

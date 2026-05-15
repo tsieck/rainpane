@@ -70,8 +70,8 @@ export function RainCanvas({ activeMask, settings }: RainCanvasProps) {
           : currentSettings.reducedMotion
             ? 16
             : currentSettings.lowPowerMode
-              ? 24
-              : 45;
+              ? 18
+              : 36;
       const frameInterval = 1000 / targetFps;
 
       if (document.visibilityState === 'hidden') {

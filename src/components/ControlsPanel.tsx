@@ -1,4 +1,4 @@
-import { applyIntensity, applyMode } from '../state/settingsStore';
+import { applyIntensity, applyMode, INTENSITY_PRESETS } from '../state/settingsStore';
 import type { WeatherIntensity, WeatherSettings } from '../weather/types';
 import { ModeSelector } from './ModeSelector';
 
@@ -53,6 +53,16 @@ const INTENSITY_LABELS: Array<{ id: WeatherIntensity; label: string }> = [
   { id: 'frosted', label: 'Frosted' },
 ];
 
+function matchesIntensity(settings: WeatherSettings, preset: WeatherIntensity) {
+  const values = INTENSITY_PRESETS[preset];
+  return (
+    Math.abs(settings.rainIntensity - values.rainIntensity) < 0.005 &&
+    Math.abs(settings.fogIntensity - values.fogIntensity) < 0.005 &&
+    Math.abs(settings.dropletDensity - values.dropletDensity) < 0.005 &&
+    Math.abs(settings.animationSpeed - values.animationSpeed) < 0.005
+  );
+}
+
 export function ControlsPanel({ settings, onChange, onReset }: ControlsPanelProps) {
   const update = (patch: Partial<WeatherSettings>) => onChange({ ...settings, ...patch });
 
@@ -66,11 +76,21 @@ export function ControlsPanel({ settings, onChange, onReset }: ControlsPanelProp
       <ModeSelector value={settings.mode} onChange={(mode) => onChange(applyMode(settings, mode))} />
 
       <div className="preset-row" aria-label="Intensity presets">
-        {INTENSITY_LABELS.map((preset) => (
-          <button key={preset.id} type="button" onClick={() => onChange(applyIntensity(settings, preset.id))}>
-            {preset.label}
-          </button>
-        ))}
+        {INTENSITY_LABELS.map((preset) => {
+          const active = matchesIntensity(settings, preset.id);
+
+          return (
+            <button
+              key={preset.id}
+              className={active ? 'is-active' : undefined}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onChange(applyIntensity(settings, preset.id))}
+            >
+              {preset.label}
+            </button>
+          );
+        })}
       </div>
 
       <label className="select-row">

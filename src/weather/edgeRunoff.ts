@@ -18,10 +18,16 @@ function makeDrop(settings: WeatherSettings): EdgeRunoffDrop {
 
 export function syncEdgeRunoff(drops: EdgeRunoffDrop[], activeMask: Rect | null, settings: WeatherSettings) {
   const enabled = Boolean(activeMask) && settings.dropletsEnabled && !settings.coverFullScreen && !settings.reducedMotion;
+  const quietScale = settings.mode === 'storm-lock-in' ? 1 : settings.mode === 'night-drive' ? 0.82 : 0.62;
   const target = enabled
     ? Math.min(
-        settings.lowPowerMode ? 14 : 26,
-        Math.floor(((activeMask?.width ?? 0) + (activeMask?.height ?? 0)) * settings.dropletDensity * (settings.lowPowerMode ? 0.018 : 0.028)),
+        settings.lowPowerMode ? 8 : 16,
+        Math.floor(
+          ((activeMask?.width ?? 0) + (activeMask?.height ?? 0)) *
+            settings.dropletDensity *
+            quietScale *
+            (settings.lowPowerMode ? 0.011 : 0.018),
+        ),
       )
     : 0;
 
@@ -60,7 +66,8 @@ export function drawEdgeRunoff(
     const progress = drop.age / drop.lifetime;
     const fadeIn = Math.min(1, drop.age / 1.4);
     const fadeOut = Math.max(0, 1 - progress);
-    const alpha = drop.opacity * settings.dropletDensity * fadeIn * fadeOut;
+    const modeAlpha = settings.mode === 'storm-lock-in' ? 0.82 : settings.mode === 'night-drive' ? 0.66 : 0.48;
+    const alpha = drop.opacity * settings.dropletDensity * fadeIn * fadeOut * modeAlpha;
 
     if (drop.side === 'top') {
       drop.t += (drop.speed * 0.24 * dt * settings.animationSpeed) / Math.max(1, activeMask.width);
