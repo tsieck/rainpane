@@ -27,12 +27,15 @@ export class WeatherEngine {
   private accumulationKey = '';
 
   private focusQuietMargin(width: number, height: number, settings: WeatherSettings) {
-    const shortestEdge = Math.min(width, height);
-    const base = Math.min(24, Math.max(10, shortestEdge * 0.014));
+    if (settings.renderBudget === 'conservative' || settings.lowPowerMode) {
+      return 0;
+    }
+
+    const base = Math.min(12, Math.max(6, Math.min(width, height) * 0.006));
     const modeScale = settings.mode === 'winterglass' ? 1.08 : settings.mode === 'storm-lock-in' ? 1.04 : 1;
     const atmosphere = Math.max(settings.rainIntensity, settings.fogIntensity, settings.dropletDensity);
 
-    return base * modeScale * (0.78 + atmosphere * 0.18);
+    return base * modeScale * (1 + atmosphere * 0.35);
   }
 
   private syncAccumulationState(settings: WeatherSettings) {
@@ -107,7 +110,7 @@ export class WeatherEngine {
       drawGrain(ctx, width, height, this.elapsed, settings);
     });
 
-    if (activeMask) {
+    if (activeMask && settings.renderBudget !== 'conservative' && !settings.lowPowerMode) {
       drawMaskFeather(ctx, activeMask, preset.palette.fog, settings.fogIntensity);
     }
   }

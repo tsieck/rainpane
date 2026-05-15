@@ -10,12 +10,12 @@ describe('rain canvas render profile', () => {
     expect(profile.targetFps).toBeLessThanOrEqual(12);
   });
 
-  it('uses a stricter profile for conservative overlay rendering', () => {
+  it('uses a lower-resolution profile for conservative overlay rendering', () => {
     const lowPower = getRainCanvasRenderProfile(DEFAULT_SETTINGS);
     const conservative = getRainCanvasRenderProfile({ ...DEFAULT_SETTINGS, renderBudget: 'conservative' });
 
     expect(conservative.pixelScaleCap).toBeLessThan(lowPower.pixelScaleCap);
-    expect(conservative.targetFps).toBeLessThan(lowPower.targetFps);
+    expect(conservative.targetFps).toBeLessThanOrEqual(16);
   });
 
   it('keeps settings preview rendering cheaper than the overlay', () => {

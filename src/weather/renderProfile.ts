@@ -19,19 +19,19 @@ export function getRainCanvasRenderProfile(
 
   if (surface === 'preview') {
     return {
-      pixelScaleCap: reducedMotion ? 0.36 : 0.42,
-      targetFps: reducedMotion ? 4 : 6,
+      pixelScaleCap: reducedMotion ? 0.38 : 0.44,
+      targetFps: reducedMotion ? 6 : 10,
       hiddenFps: 1,
-      maxDeltaSeconds: 0.18,
+      maxDeltaSeconds: 0.12,
     };
   }
 
   if (conservative) {
     return {
-      pixelScaleCap: reducedMotion ? 0.34 : 0.4,
-      targetFps: reducedMotion ? 5 : 8,
+      pixelScaleCap: reducedMotion ? 0.36 : 0.4,
+      targetFps: reducedMotion ? 8 : 16,
       hiddenFps: 1,
-      maxDeltaSeconds: 0.16,
+      maxDeltaSeconds: 0.08,
     };
   }
 

@@ -67,7 +67,7 @@ export function drawMaskFeather(ctx: CanvasRenderingContext2D, mask: Rect, fogCo
     return;
   }
 
-  const feather = 30;
+  const feather = 8;
   const outer = {
     x: mask.x - feather,
     y: mask.y - feather,
@@ -84,7 +84,7 @@ export function drawMaskFeather(ctx: CanvasRenderingContext2D, mask: Rect, fogCo
   const top = ctx.createLinearGradient(0, outer.y, 0, mask.y);
   top.addColorStop(0, 'rgba(0,0,0,0)');
   top.addColorStop(1, fogColor);
-  ctx.globalAlpha = strength * 0.18;
+  ctx.globalAlpha = strength * 0.08;
   ctx.fillStyle = top;
   ctx.fillRect(mask.x, outer.y, mask.width, feather);
 
