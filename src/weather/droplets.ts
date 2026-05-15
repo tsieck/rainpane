@@ -66,9 +66,9 @@ function makeDroplet(width: number, height: number, clearMask: Rect | null, sett
 
 export function syncDroplets(droplets: Droplet[], width: number, height: number, settings: WeatherSettings, clearMask: Rect | null) {
   const densityBoost = settings.mode === 'night-drive' ? 1.36 : settings.mode === 'winterglass' ? 0.78 : settings.mode === 'greyglass' ? 0.9 : 1.12;
-  const powerScale = settings.renderBudget === 'conservative' ? 0.42 : settings.lowPowerMode ? 0.64 : 1;
+  const powerScale = settings.renderBudget === 'conservative' ? 0.22 : settings.lowPowerMode ? 0.48 : 1;
   const target = settings.dropletsEnabled ? Math.floor((width * height * settings.dropletDensity * densityBoost * powerScale) / 7200) : 0;
-  const cappedTarget = Math.min(target, settings.reducedMotion ? 70 : settings.renderBudget === 'conservative' ? 95 : settings.lowPowerMode ? 150 : 280);
+  const cappedTarget = Math.min(target, settings.reducedMotion ? 36 : settings.renderBudget === 'conservative' ? 48 : settings.lowPowerMode ? 105 : 240);
 
   while (droplets.length < cappedTarget) {
     droplets.push(makeDroplet(width, height, clearMask, settings));
@@ -104,6 +104,7 @@ export function drawDroplets(
   }
 
   ctx.save();
+  const cheapDroplets = settings.renderBudget === 'conservative' || settings.lowPowerMode;
   for (let index = droplets.length - 1; index >= 0; index -= 1) {
     const droplet = droplets[index];
     droplet.age += dt * settings.animationSpeed;
@@ -121,6 +122,24 @@ export function drawDroplets(
     const modeAlpha = settings.mode === 'night-drive' ? 1.24 : settings.mode === 'winterglass' ? 0.76 : settings.mode === 'greyglass' ? 0.82 : 1;
     const alpha = droplet.opacity * fadeIn * fadeOut * settings.dropletDensity * modeAlpha;
     const refractionAlpha = alpha * droplet.refraction;
+
+    if (cheapDroplets) {
+      ctx.globalAlpha = alpha * (droplet.kind === 'micro' ? 0.46 : 0.58);
+      ctx.fillStyle = 'rgba(213, 231, 232, 0.72)';
+      ctx.beginPath();
+      ctx.ellipse(droplet.x, droplet.y, droplet.radiusX * 0.72, droplet.radiusY * 0.76, -0.08, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (droplet.kind !== 'micro') {
+        ctx.globalAlpha = alpha * 0.26;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.58)';
+        ctx.lineWidth = 0.55;
+        ctx.beginPath();
+        ctx.ellipse(droplet.x - droplet.radiusX * 0.18, droplet.y - droplet.radiusY * 0.14, droplet.radiusX * 0.36, droplet.radiusY * 0.44, -0.1, 0.2, Math.PI * 1.2);
+        ctx.stroke();
+      }
+      continue;
+    }
 
     const gradient = ctx.createRadialGradient(
       droplet.x - droplet.radiusX * 0.35,

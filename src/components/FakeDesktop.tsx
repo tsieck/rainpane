@@ -56,6 +56,15 @@ export function FakeDesktop({ settings }: FakeDesktopProps) {
   const [windows, setWindows] = useState(INITIAL_WINDOWS);
   const [activeId, setActiveId] = useState('browser');
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const previewSettings = useMemo<WeatherSettings>(
+    () => ({
+      ...settings,
+      lowPowerMode: true,
+      grainEnabled: false,
+      renderBudget: 'conservative',
+    }),
+    [settings],
+  );
 
   const activeMask = useMemo<Rect | null>(() => {
     const activeWindow = windows.find((windowModel) => windowModel.id === activeId);
@@ -156,7 +165,7 @@ export function FakeDesktop({ settings }: FakeDesktopProps) {
           onDragStart={startDrag}
         />
       ))}
-      <RainCanvas activeMask={activeMask} settings={settings} />
+      <RainCanvas activeMask={activeMask} settings={previewSettings} surface="preview" />
     </section>
   );
 }

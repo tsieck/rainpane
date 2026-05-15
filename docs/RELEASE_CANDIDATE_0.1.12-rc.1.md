@@ -9,6 +9,8 @@ This RC pass focused on making Rainpane feel trustworthy as a quiet daily-use ov
 
 The macOS app now builds, launches locally from the packaged `.app`, survives close-to-hide settings behavior, restores the transparent overlay when settings loses focus, and has a Windows ZIP artifact. True multi-monitor and Windows runtime behavior still need device testing.
 
+Performance-clean follow-up: default low-power overlay rendering was reduced from the initial 38-40% CPU daily samples to roughly 4.8% average CPU in overlay-only posture on the attached 5120 x 2160 display.
+
 ## Evidence
 
 ![Final Finder active-window mask](media/rainpane-0.1.12-rc.1-final-mask-finder.png)
@@ -25,23 +27,25 @@ Mode screenshots:
 - [Greyglass](media/rainpane-0.1.12-rc.1-soak-greyglass.png)
 - [Night Drive](media/rainpane-0.1.12-rc.1-soak-night-drive.png)
 - [Winterglass](media/rainpane-0.1.12-rc.1-soak-winterglass.png)
+- [Performance-clean overlay over Finder](media/rainpane-0.1.12-rc.1-performance-clean-finder.png)
 
 ## What Changed
 
-- Added an expanded quiet mask around the active window for particle-heavy layers so rain, snow, frost, droplets, splashes, and grain stay farther off the work surface.
+- Added and then tightened a quiet mask around the active window for particle-heavy layers so rain, snow, frost, droplets, and splashes stay off the work surface without leaving a giant dead rectangle.
 - Reduced active-edge runoff density and opacity so edge detail reads as ambient glass, not focus-pane distraction.
 - Reworked overlay visibility state in the Electron main process so the overlay is intentionally enabled/disabled, while settings focus only suppresses it temporarily.
 - Added local unsigned macOS entitlements for the ad-hoc hardened-runtime package so the rebuilt app launches from `/tmp`.
-- Reduced default render cadence for daily use: low-power mode now targets 18fps and full-power mode targets 36fps.
+- Added explicit render profiles: default overlay low-power now uses conservative 8fps rendering, lower internal pixel scale, no grain, fewer low-power particles, and cheaper fog accumulation.
+- Made the settings/demo preview cheaper so opening preferences no longer doubles the weather-rendering cost.
 - Improved settings UI affordances: pressed intensity preset states, clearer focus rings, 2x2 preset layout, scrollbar polish, and toggle hover/active states.
-- Added/expanded tests for quiet-mask geometry, partial persisted mode recovery, and renderer/main-process mode preset parity.
+- Added/expanded tests for quiet-mask geometry, render-profile budgets, partial persisted mode recovery, and renderer/main-process mode preset parity.
 - Bumped package metadata to `0.1.12-rc.1`.
 
 ## RC Checklist
 
 | Area | Status | Evidence |
 | --- | --- | --- |
-| Unit checks | PASS | `npm test`: 32 tests passing |
+| Unit checks | PASS | `npm test`: 35 tests passing |
 | Type/build checks | PASS | `npm run build`: TypeScript, Vite, Electron build passing |
 | Packaged macOS launch | PASS | Direct launch from `/tmp/rainpane-release/mac-arm64/Rainpane.app/Contents/MacOS/Rainpane`, process path verified |
 | Transparent overlay | PASS | Final Finder/Chrome/Codex screenshots above from packaged app |
@@ -50,7 +54,7 @@ Mode screenshots:
 | Settings reopen shortcut | PASS | `Cmd-Option-S` reopens settings from overlay-only state |
 | Menu behavior | PASS | App menu exposes Open Settings/Demo, Show/Hide Overlay, Check for Updates, Quit |
 | Seasonal modes | PASS | Cozy Rain, Greyglass, Night Drive, and Winterglass selected through packaged UI and captured |
-| Daily performance soak | PASS | Four 60-second samples, debug off, settings hidden, all-displays mode on one 5120x2160 display |
+| Daily performance soak | PASS | Initial four-mode samples showed 38-40% CPU; performance-clean rebuild now averages 4.8% CPU overlay-only on one 5120x2160 display |
 | macOS artifacts | PASS | DMG and ZIP created in `/tmp/rainpane-release` |
 | Windows artifact | PASS | x64 Windows ZIP created in `/tmp/rainpane-release` |
 | Multi-monitor | PARTIAL | Only one display attached locally; all-displays path tested on single LG ULTRAWIDE |
@@ -59,7 +63,7 @@ Mode screenshots:
 
 ## Performance
 
-Final tuned daily-posture samples used the packaged app with settings hidden, debug mask off, low power on, `All displays`, Finder foreground, and one attached 5120 x 2160 display.
+Initial tuned daily-posture samples used the packaged app with settings hidden, debug mask off, low power on, `All displays`, Finder foreground, and one attached 5120 x 2160 display. Those numbers were still too high for a daily-use ambient overlay.
 
 | Mode | Samples | Avg CPU | Max CPU | RSS Start | RSS End | RSS Max |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -74,6 +78,18 @@ CSV evidence:
 - `docs/perf/rainpane-0.1.12-rc.1-daily-greyglass.csv`
 - `docs/perf/rainpane-0.1.12-rc.1-daily-night-drive.csv`
 - `docs/perf/rainpane-0.1.12-rc.1-daily-winterglass.csv`
+
+Performance-clean rebuild samples used the rebuilt packaged app from `/tmp/rainpane-release/mac-arm64/Rainpane.app`, one attached 5120 x 2160 display, low-power conservative overlay rendering, and 3-second sample intervals.
+
+| Posture | Samples | Avg CPU | Max CPU | Notes |
+| --- | ---: | ---: | ---: | --- |
+| Settings/demo open | 10 | 6.8% | 7.7% | Preferences visible, preview canvas active |
+| Overlay only | 10 | 4.8% | 7.2% | Only transparent overlay window visible |
+
+Performance-clean CSV evidence:
+
+- `docs/perf/rainpane-0.1.12-rc.1-performance-clean-open-app.csv`
+- `docs/perf/rainpane-0.1.12-rc.1-performance-clean-overlay-only.csv`
 
 ## Local Artifacts
 

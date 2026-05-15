@@ -28,11 +28,11 @@ export class WeatherEngine {
 
   private focusQuietMargin(width: number, height: number, settings: WeatherSettings) {
     const shortestEdge = Math.min(width, height);
-    const base = Math.min(54, Math.max(22, shortestEdge * 0.045));
-    const modeScale = settings.mode === 'winterglass' ? 1.24 : settings.mode === 'storm-lock-in' ? 1.14 : 1;
+    const base = Math.min(24, Math.max(10, shortestEdge * 0.014));
+    const modeScale = settings.mode === 'winterglass' ? 1.08 : settings.mode === 'storm-lock-in' ? 1.04 : 1;
     const atmosphere = Math.max(settings.rainIntensity, settings.fogIntensity, settings.dropletDensity);
 
-    return base * modeScale * (0.82 + atmosphere * 0.36);
+    return base * modeScale * (0.78 + atmosphere * 0.18);
   }
 
   private syncAccumulationState(settings: WeatherSettings) {

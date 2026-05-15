@@ -58,9 +58,9 @@ function drawCrystalFlake(ctx: CanvasRenderingContext2D, flake: SnowFlake, alpha
 
 export function syncSnowFlakes(flakes: SnowFlake[], width: number, height: number, settings: WeatherSettings) {
   const enabled = settings.mode === 'winterglass' && settings.rainEnabled;
-  const powerScale = settings.renderBudget === 'conservative' ? 0.42 : settings.lowPowerMode ? 0.62 : 1;
+  const powerScale = settings.renderBudget === 'conservative' ? 0.22 : settings.lowPowerMode ? 0.48 : 1;
   const target = enabled ? Math.floor((width * height * Math.max(0.2, settings.fogIntensity) * powerScale) / 12500) : 0;
-  const cappedTarget = Math.min(target, settings.reducedMotion ? 44 : settings.renderBudget === 'conservative' ? 76 : settings.lowPowerMode ? 118 : 190);
+  const cappedTarget = Math.min(target, settings.reducedMotion ? 28 : settings.renderBudget === 'conservative' ? 42 : settings.lowPowerMode ? 88 : 170);
 
   while (flakes.length < cappedTarget) {
     flakes.push(makeFlake(width, height));

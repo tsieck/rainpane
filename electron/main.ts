@@ -33,7 +33,7 @@ let activeWindowPoll: NodeJS.Timeout | null = null;
 let saveSettingsTimer: NodeJS.Timeout | null = null;
 let runtimeMonitor: NodeJS.Timeout | null = null;
 let overlayEnabled = true;
-const ACTIVE_WINDOW_POLL_MS = 125;
+const ACTIVE_WINDOW_POLL_MS = 250;
 const IDLE_DEEPENING_SECONDS = 90;
 const INTENSITY_PRESETS = {
   mist: { rainIntensity: 0.18, fogIntensity: 0.22, dropletDensity: 0.18, animationSpeed: 0.56 },

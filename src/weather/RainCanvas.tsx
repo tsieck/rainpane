@@ -1,14 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { MODE_PRESETS } from '../state/settingsStore';
+import { getRainCanvasRenderProfile, type RainCanvasSurface } from './renderProfile';
 import type { Rect, WeatherSettings } from './types';
 import { WeatherEngine } from './weatherEngine';
 
 interface RainCanvasProps {
   activeMask: Rect | null;
   settings: WeatherSettings;
+  surface?: RainCanvasSurface;
 }
 
-export function RainCanvas({ activeMask, settings }: RainCanvasProps) {
+export function RainCanvas({ activeMask, settings, surface = 'overlay' }: RainCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef(new WeatherEngine());
   const settingsRef = useRef(settings);
@@ -35,14 +37,15 @@ export function RainCanvas({ activeMask, settings }: RainCanvasProps) {
     }
 
     let frameId = 0;
+    let timerId = 0;
     let lastTime = performance.now();
     let lastRenderTime = 0;
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       const currentSettings = settingsRef.current;
-      const dprCap = currentSettings.renderBudget === 'conservative' ? 0.75 : currentSettings.reducedMotion || currentSettings.lowPowerMode ? 1 : 1.5;
-      const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+      const profile = getRainCanvasRenderProfile(currentSettings, surface);
+      const dpr = Math.min(window.devicePixelRatio || 1, profile.pixelScaleCap);
       const width = Math.max(1, rect.width);
       const height = Math.max(1, rect.height);
       const pixelWidth = Math.max(1, Math.floor(width * dpr));
@@ -60,33 +63,36 @@ export function RainCanvas({ activeMask, settings }: RainCanvasProps) {
     observer.observe(canvas);
     resize();
 
+    const scheduleFrame = (delayMs = 0) => {
+      if (delayMs > 0) {
+        timerId = window.setTimeout(() => {
+          timerId = 0;
+          frameId = requestAnimationFrame(tick);
+        }, delayMs);
+        return;
+      }
+
+      frameId = requestAnimationFrame(tick);
+    };
+
     const tick = (now: number) => {
       const currentSettings = settingsRef.current;
-      const targetFps =
-        currentSettings.renderBudget === 'conservative'
-          ? currentSettings.reducedMotion
-            ? 12
-            : 18
-          : currentSettings.reducedMotion
-            ? 16
-            : currentSettings.lowPowerMode
-              ? 18
-              : 36;
-      const frameInterval = 1000 / targetFps;
+      const profile = getRainCanvasRenderProfile(currentSettings, surface);
+      const frameInterval = 1000 / profile.targetFps;
 
       if (document.visibilityState === 'hidden') {
         lastTime = now;
         lastRenderTime = now;
-        frameId = requestAnimationFrame(tick);
+        scheduleFrame(1000 / profile.hiddenFps);
         return;
       }
 
       if (lastRenderTime > 0 && now - lastRenderTime < frameInterval) {
-        frameId = requestAnimationFrame(tick);
+        scheduleFrame(frameInterval - (now - lastRenderTime));
         return;
       }
 
-      const dt = Math.min(currentSettings.lowPowerMode ? 0.08 : 0.05, (now - lastTime) / 1000);
+      const dt = Math.min(profile.maxDeltaSeconds, (now - lastTime) / 1000);
       lastTime = now;
       lastRenderTime = now;
       resize();
@@ -94,16 +100,19 @@ export function RainCanvas({ activeMask, settings }: RainCanvasProps) {
       const preset = MODE_PRESETS[currentSettings.mode];
 
       engineRef.current.render(ctx, width, height, dt, maskRef.current, currentSettings, preset);
-      frameId = requestAnimationFrame(tick);
+      scheduleFrame(frameInterval);
     };
 
-    frameId = requestAnimationFrame(tick);
+    scheduleFrame();
 
     return () => {
       cancelAnimationFrame(frameId);
+      if (timerId) {
+        window.clearTimeout(timerId);
+      }
       observer.disconnect();
     };
-  }, []);
+  }, [surface]);
 
   return <canvas ref={canvasRef} className="rain-canvas" aria-hidden="true" />;
 }
