@@ -9,7 +9,7 @@ This RC pass focused on making Rainpane feel trustworthy as a quiet daily-use ov
 
 The macOS app now builds, launches locally from the packaged `.app`, survives close-to-hide settings behavior, restores the transparent overlay when settings loses focus, and has a Windows ZIP artifact. True multi-monitor and Windows runtime behavior still need device testing.
 
-Performance-clean follow-up: the first 8fps cleanup reduced overlay-only CPU to roughly 4.8%, but the motion felt visibly laggy. The current balanced build restores low-power overlay motion to 16fps, removes the enlarged active-window halo, and averages roughly 13% CPU overlay-only on the attached 5120 x 2160 display.
+Performance-clean follow-up: the first 8fps cleanup reduced overlay-only CPU to roughly 4.8%, but the motion felt visibly laggy. The current balanced build restores low-power overlay motion to 20fps, removes the enlarged active-window halo, and averaged roughly 7.9% CPU in a short overlay-only sample on the attached 5120 x 2160 display.
 
 ## Evidence
 
@@ -36,7 +36,7 @@ Mode screenshots:
 - Reduced active-edge runoff density and opacity so edge detail reads as ambient glass, not focus-pane distraction.
 - Reworked overlay visibility state in the Electron main process so the overlay is intentionally enabled/disabled, while settings focus only suppresses it temporarily.
 - Added local unsigned macOS entitlements for the ad-hoc hardened-runtime package so the rebuilt app launches from `/tmp`.
-- Added explicit render profiles: default overlay low-power now uses conservative 16fps rendering, lower internal pixel scale, no grain, fewer low-power particles, and cheaper fog accumulation.
+- Added explicit render profiles: default overlay low-power now uses conservative 20fps rendering, lower internal pixel scale, no grain, fewer low-power particles, and cheaper fog accumulation.
 - Removed the expanded low-power particle quiet zone and disabled the visible mask feather in default low-power overlay mode so the active-window boundary stays tight.
 - Made the settings/demo preview cheaper so opening preferences no longer doubles the weather-rendering cost.
 - Improved settings UI affordances: pressed intensity preset states, clearer focus rings, 2x2 preset layout, scrollbar polish, and toggle hover/active states.
@@ -56,7 +56,7 @@ Mode screenshots:
 | Settings reopen shortcut | PASS | `Cmd-Option-S` reopens settings from overlay-only state |
 | Menu behavior | PASS | App menu exposes Open Settings/Demo, Show/Hide Overlay, Check for Updates, Quit |
 | Seasonal modes | PASS | Cozy Rain, Greyglass, Night Drive, and Winterglass selected through packaged UI and captured |
-| Daily performance soak | PASS | Initial four-mode samples showed 38-40% CPU; balanced no-halo rebuild now averages 13.0% CPU overlay-only on one 5120x2160 display |
+| Daily performance soak | PASS | Initial four-mode samples showed 38-40% CPU; current 20fps no-halo rebuild averaged 7.9% CPU in a short overlay-only sample on one 5120x2160 display |
 | macOS artifacts | PASS | DMG and ZIP created in `/tmp/rainpane-release` |
 | Windows artifact | PASS | x64 Windows ZIP created in `/tmp/rainpane-release` |
 | Multi-monitor | PARTIAL | Only one display attached locally; all-displays path tested on single LG ULTRAWIDE |
@@ -86,13 +86,15 @@ Performance-clean samples used the rebuilt packaged app from `/tmp/rainpane-rele
 | Posture | Samples | Avg CPU | Max CPU | Notes |
 | --- | ---: | ---: | ---: | --- |
 | 8fps cleanup, overlay only | 10 | 4.8% | 7.2% | Superseded because rain motion felt laggy |
-| Balanced no-halo, overlay only | 8 | 13.0% | 15.1% | Current default low-power overlay posture |
+| Balanced no-halo, overlay only | 8 | 13.0% | 15.1% | 16fps baseline before moving current default to 20fps |
+| Balanced 20fps no-halo, overlay only | 8 | 7.9% | 9.1% | Current default low-power overlay posture, short sample |
 
 Performance-clean CSV evidence:
 
 - `docs/perf/rainpane-0.1.12-rc.1-performance-clean-open-app.csv`
 - `docs/perf/rainpane-0.1.12-rc.1-performance-clean-overlay-only.csv`
 - `docs/perf/rainpane-0.1.12-rc.1-balanced-overlay-only.csv`
+- `docs/perf/rainpane-0.1.12-rc.1-balanced-20fps-overlay-only.csv`
 
 ## Local Artifacts
 

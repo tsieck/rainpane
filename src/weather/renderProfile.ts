@@ -29,9 +29,9 @@ export function getRainCanvasRenderProfile(
   if (conservative) {
     return {
       pixelScaleCap: reducedMotion ? 0.36 : 0.4,
-      targetFps: reducedMotion ? 8 : 16,
+      targetFps: reducedMotion ? 10 : 20,
       hiddenFps: 1,
-      maxDeltaSeconds: 0.08,
+      maxDeltaSeconds: 0.06,
     };
   }
 

@@ -15,7 +15,7 @@ describe('rain canvas render profile', () => {
     const conservative = getRainCanvasRenderProfile({ ...DEFAULT_SETTINGS, renderBudget: 'conservative' });
 
     expect(conservative.pixelScaleCap).toBeLessThan(lowPower.pixelScaleCap);
-    expect(conservative.targetFps).toBeLessThanOrEqual(16);
+    expect(conservative.targetFps).toBeLessThanOrEqual(20);
   });
 
   it('keeps settings preview rendering cheaper than the overlay', () => {
