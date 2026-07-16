@@ -23,6 +23,7 @@ export interface WeatherSettings {
   fullRainWhileMoving: boolean;
   lockInDimmingEnabled: boolean;
   idleDeepeningEnabled: boolean;
+  photorealRefractionEnabled: boolean;
   displayMode: DisplayMode;
 }
 
@@ -42,6 +43,7 @@ export const DEFAULT_SETTINGS: WeatherSettings = {
   fullRainWhileMoving: true,
   lockInDimmingEnabled: true,
   idleDeepeningEnabled: true,
+  photorealRefractionEnabled: false,
   displayMode: 'primary',
   rainIntensity: 0.38,
   fogIntensity: 0.24,
@@ -136,6 +138,10 @@ export function validateSettings(input: unknown, current: WeatherSettings): Weat
       typeof candidate.idleDeepeningEnabled === 'boolean'
         ? candidate.idleDeepeningEnabled
         : current.idleDeepeningEnabled,
+    photorealRefractionEnabled:
+      typeof candidate.photorealRefractionEnabled === 'boolean'
+        ? candidate.photorealRefractionEnabled
+        : current.photorealRefractionEnabled,
     displayMode:
       candidate.displayMode && DISPLAY_MODES.has(candidate.displayMode) ? candidate.displayMode : current.displayMode,
     rainIntensity: clamp(candidate.rainIntensity, 0, 1, numericBase.rainIntensity),

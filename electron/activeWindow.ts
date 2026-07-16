@@ -10,7 +10,6 @@ const MAC_HELPER_MODULE_CACHE = path.join(MAC_HELPER_DIR, 'clang-module-cache');
 const MAC_HELPER_SOURCE = path.join(MAC_HELPER_DIR, 'active-window-macos.swift');
 const MAC_HELPER_BINARY = path.join(MAC_HELPER_DIR, 'active-window-macos');
 const CORE_GRAPHICS_SHADOW_INSET = 0;
-const CORE_GRAPHICS_VERTICAL_OFFSET = -24;
 let macHelperCompilePromise: Promise<string | null> | null = null;
 
 export interface Rect {
@@ -247,10 +246,9 @@ export function mapWindowToDisplayMask(bounds: WindowBounds | null, displayBound
   const win32OffsetX = bounds.source === 'win32' && nativeOrigin ? displayBounds.x - nativeOrigin.x : 0;
   const win32OffsetY = bounds.source === 'win32' && nativeOrigin ? displayBounds.y - nativeOrigin.y : 0;
   const sourceLeft = bounds.x + shadowInset + win32OffsetX;
-  const verticalOffset = bounds.source === 'core-graphics' ? CORE_GRAPHICS_VERTICAL_OFFSET : 0;
-  const sourceTop = bounds.y + shadowInset + verticalOffset + win32OffsetY;
+  const sourceTop = bounds.y + shadowInset + win32OffsetY;
   const sourceRight = bounds.x + bounds.width - shadowInset + win32OffsetX;
-  const sourceBottom = bounds.y + bounds.height - shadowInset + verticalOffset + win32OffsetY;
+  const sourceBottom = bounds.y + bounds.height - shadowInset + win32OffsetY;
 
   const left = Math.max(sourceLeft, displayBounds.x);
   const top = Math.max(sourceTop, displayBounds.y);

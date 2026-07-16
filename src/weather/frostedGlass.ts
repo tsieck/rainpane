@@ -236,7 +236,9 @@ export function drawFrostedGlass(
   ctx.save();
   drawCornerBloom(ctx, width, height, strength, preset);
   drawEdgeFrost(ctx, width, height, strength, preset);
-  drawFrostCrystals(ctx, width, height, elapsed, strength, settings);
-  drawWinterFrostClusters(ctx, width, height, strength, settings);
+  if (settings.mode === 'winterglass') {
+    drawFrostCrystals(ctx, width, height, elapsed, strength, settings);
+    drawWinterFrostClusters(ctx, width, height, strength, settings);
+  }
   ctx.restore();
 }

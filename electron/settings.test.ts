@@ -3,6 +3,18 @@ import { MODE_PRESETS } from '../src/state/settingsStore';
 import { DEFAULT_SETTINGS, MODE_DEFAULTS, validateSettings } from './settings.js';
 
 describe('electron settings validation', () => {
+  it('keeps photoreal refraction opt-in and validates it as a boolean', () => {
+    expect(DEFAULT_SETTINGS.photorealRefractionEnabled).toBe(false);
+    expect(
+      validateSettings({ photorealRefractionEnabled: true }, DEFAULT_SETTINGS)
+        .photorealRefractionEnabled,
+    ).toBe(true);
+    expect(
+      validateSettings({ photorealRefractionEnabled: 'yes' }, DEFAULT_SETTINGS)
+        .photorealRefractionEnabled,
+    ).toBe(false);
+  });
+
   it('keeps main-process mode defaults in sync with renderer presets', () => {
     const rendererModeDefaults = Object.fromEntries(
       Object.entries(MODE_PRESETS).map(([mode, preset]) => [mode, preset.settings]),

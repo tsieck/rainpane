@@ -40,6 +40,64 @@ export function pointInRect(x: number, y: number, rect: Rect, padding = 0): bool
   );
 }
 
+export function ellipseIntersectsRect(
+  x: number,
+  y: number,
+  radiusX: number,
+  radiusY: number,
+  rect: Rect,
+  padding = 0,
+): boolean {
+  const left = rect.x - padding;
+  const right = rect.x + rect.width + padding;
+  const top = rect.y - padding;
+  const bottom = rect.y + rect.height + padding;
+  const closestX = Math.max(left, Math.min(x, right));
+  const closestY = Math.max(top, Math.min(y, bottom));
+  const distanceX = Math.abs(x - closestX);
+  const distanceY = Math.abs(y - closestY);
+  const safeRadiusX = Math.abs(radiusX);
+  const safeRadiusY = Math.abs(radiusY);
+  const normalizedX = safeRadiusX === 0 ? (distanceX === 0 ? 0 : Number.POSITIVE_INFINITY) : distanceX / safeRadiusX;
+  const normalizedY = safeRadiusY === 0 ? (distanceY === 0 ? 0 : Number.POSITIVE_INFINITY) : distanceY / safeRadiusY;
+
+  return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
+}
+
+export function getFocusMaskCornerRadius(mask: Rect, width: number, height: number) {
+  const coversCanvas =
+    mask.x <= 0 &&
+    mask.y <= 0 &&
+    mask.x + mask.width >= width &&
+    mask.y + mask.height >= height;
+  if (coversCanvas) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(12, mask.width * 0.08, mask.height * 0.08));
+}
+
+export function traceRoundedRect(ctx: CanvasRenderingContext2D, rect: Rect, radius: number) {
+  const safeRadius = Math.max(0, Math.min(radius, rect.width * 0.5, rect.height * 0.5));
+  if (safeRadius <= 0.01) {
+    ctx.rect(rect.x, rect.y, rect.width, rect.height);
+    return;
+  }
+
+  const right = rect.x + rect.width;
+  const bottom = rect.y + rect.height;
+  ctx.moveTo(rect.x + safeRadius, rect.y);
+  ctx.lineTo(right - safeRadius, rect.y);
+  ctx.arcTo(right, rect.y, right, rect.y + safeRadius, safeRadius);
+  ctx.lineTo(right, bottom - safeRadius);
+  ctx.arcTo(right, bottom, right - safeRadius, bottom, safeRadius);
+  ctx.lineTo(rect.x + safeRadius, bottom);
+  ctx.arcTo(rect.x, bottom, rect.x, bottom - safeRadius, safeRadius);
+  ctx.lineTo(rect.x, rect.y + safeRadius);
+  ctx.arcTo(rect.x, rect.y, rect.x + safeRadius, rect.y, safeRadius);
+  ctx.closePath();
+}
+
 export function withInactiveClip(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -52,10 +110,10 @@ export function withInactiveClip(
   ctx.beginPath();
   ctx.rect(0, 0, width, height);
   if (clearMask) {
-    ctx.rect(clearMask.x, clearMask.y, clearMask.width, clearMask.height);
+    traceRoundedRect(ctx, clearMask, getFocusMaskCornerRadius(clearMask, width, height));
   }
   for (const mask of extraClearMasks) {
-    ctx.rect(mask.x, mask.y, mask.width, mask.height);
+    traceRoundedRect(ctx, mask, getFocusMaskCornerRadius(mask, width, height));
   }
   ctx.clip('evenodd');
   draw();
@@ -67,7 +125,7 @@ export function drawMaskFeather(ctx: CanvasRenderingContext2D, mask: Rect, fogCo
     return;
   }
 
-  const feather = 8;
+  const feather = 5;
   const outer = {
     x: mask.x - feather,
     y: mask.y - feather,
@@ -77,14 +135,15 @@ export function drawMaskFeather(ctx: CanvasRenderingContext2D, mask: Rect, fogCo
 
   ctx.save();
   ctx.beginPath();
-  ctx.rect(outer.x, outer.y, outer.width, outer.height);
-  ctx.rect(mask.x, mask.y, mask.width, mask.height);
+  const radius = Math.max(0, Math.min(12, mask.width * 0.08, mask.height * 0.08));
+  traceRoundedRect(ctx, outer, radius + feather);
+  traceRoundedRect(ctx, mask, radius);
   ctx.clip('evenodd');
 
   const top = ctx.createLinearGradient(0, outer.y, 0, mask.y);
   top.addColorStop(0, 'rgba(0,0,0,0)');
   top.addColorStop(1, fogColor);
-  ctx.globalAlpha = strength * 0.08;
+  ctx.globalAlpha = strength * 0.05;
   ctx.fillStyle = top;
   ctx.fillRect(mask.x, outer.y, mask.width, feather);
 

@@ -1,8 +1,43 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain, powerMonitor, screen, shell, type Display } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  Menu,
+  dialog,
+  ipcMain,
+  nativeTheme,
+  powerMonitor,
+  screen,
+  shell,
+  type Display,
+  type IpcMainEvent,
+  type IpcMainInvokeEvent,
+} from 'electron';
 import { getActiveWindowBounds, mapWindowToDisplayMask, type ActiveWindowState } from './activeWindow.js';
-import { isAccessibilityTrusted, openAccessibilitySettings, requestAccessibilityPermission } from './permissions.js';
+import {
+  AVAILABLE_CAPTURE_STATE,
+  reduceCaptureAvailability,
+  systemAllowsCapture,
+  type CaptureAvailabilityEvent,
+} from './captureAvailability.js';
+import {
+  isAccessibilityTrusted,
+  openAccessibilitySettings,
+  openScreenRecordingSettings,
+  requestAccessibilityPermission,
+} from './permissions.js';
+import {
+  isAuthorizedRainpaneIpcSender,
+  type RainpaneRendererTarget,
+} from './ipcAuthorization.js';
+import {
+  getPhotorealRefractionDisplayIdForSender,
+  getPhotorealRefractionStatusForDisplay,
+  PhotorealRefractionManager,
+  type PhotorealRefractionStatus,
+} from './photorealRefraction.js';
+import { parsePhotorealRefractionFrame } from './refractionFrame.js';
 import { registerShortcuts } from './shortcuts.js';
-import { DEFAULT_SETTINGS, validateSettings, type WeatherSettings } from './settings.js';
+import { DEFAULT_SETTINGS, MODE_DEFAULTS, validateSettings, type WeatherSettings } from './settings.js';
 import { loadSettings, saveSettings } from './settingsPersistence.js';
 import { createRainpaneTray } from './tray.js';
 import { checkForGitHubUpdate, type UpdateCheckResult } from './updates.js';
@@ -16,10 +51,20 @@ interface OverlayEntry {
 interface RuntimeState {
   onBatteryPower: boolean;
   idleDeepeningActive: boolean;
+  overlayEnabled: boolean;
+  prefersReducedTransparency: boolean;
+  shouldUseHighContrastColors: boolean;
+  shouldDifferentiateWithoutColor: boolean;
+  photorealRefractionStatus: PhotorealRefractionStatus;
 }
+
+type NativeThemeWithDifferentiateWithoutColor = typeof nativeTheme & {
+  shouldDifferentiateWithoutColor?: boolean;
+};
 
 let overlayWindows: OverlayEntry[] = [];
 let demoWindow: BrowserWindow | null = null;
+let demoOpening = false;
 let settings: WeatherSettings = DEFAULT_SETTINGS;
 let trayController: ReturnType<typeof createRainpaneTray> | null = null;
 let isQuitting = false;
@@ -33,6 +78,7 @@ let activeWindowPoll: NodeJS.Timeout | null = null;
 let saveSettingsTimer: NodeJS.Timeout | null = null;
 let runtimeMonitor: NodeJS.Timeout | null = null;
 let overlayEnabled = true;
+let captureAvailability = AVAILABLE_CAPTURE_STATE;
 const ACTIVE_WINDOW_POLL_MS = 250;
 const IDLE_DEEPENING_SECONDS = 90;
 const INTENSITY_PRESETS = {
@@ -45,6 +91,13 @@ const INTENSITY_PRESETS = {
   Pick<WeatherSettings, 'rainIntensity' | 'fogIntensity' | 'dropletDensity' | 'animationSpeed'>
 >;
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
+const refractionManager = new PhotorealRefractionManager({
+  onStatusChange: () => broadcastRuntimeState(),
+  onHelperLog: (displayId, stream, message) => {
+    const logger = stream === 'stderr' ? console.warn : console.info;
+    logger(`[photoreal refraction · display ${displayId}] ${message}`);
+  },
+});
 
 if (!gotSingleInstanceLock) {
   app.exit(0);
@@ -55,6 +108,43 @@ function liveWindows() {
     ...overlayWindows.map((entry) => entry.window),
     demoWindow,
   ].filter((window): window is BrowserWindow => Boolean(window && !window.isDestroyed()));
+}
+
+function isAuthorizedRendererSender(
+  event: Pick<IpcMainEvent | IpcMainInvokeEvent, 'sender' | 'senderFrame'>,
+  view: RainpaneRendererTarget['view'],
+) {
+  const targets: RainpaneRendererTarget[] = view === 'demo'
+    ? demoWindow && !demoWindow.isDestroyed()
+      ? [{ senderId: demoWindow.webContents.id, view: 'demo' }]
+      : []
+    : overlayWindows
+      .filter((entry) => !entry.window.isDestroyed())
+      .map((entry) => ({
+        senderId: entry.window.webContents.id,
+        view: 'overlay',
+        displayId: String(entry.display.id),
+      }));
+  const senderFrame = event.senderFrame;
+
+  return isAuthorizedRainpaneIpcSender({
+    senderId: event.sender.id,
+    frameUrl: senderFrame?.url ?? '',
+    isMainFrame: Boolean(senderFrame && senderFrame === event.sender.mainFrame),
+  }, targets, {
+    appPath: app.getAppPath(),
+    devServerUrl: process.env.VITE_DEV_SERVER_URL,
+  });
+}
+
+function isAuthorizedRainpaneRenderer(
+  event: Pick<IpcMainEvent | IpcMainInvokeEvent, 'sender' | 'senderFrame'>,
+) {
+  return isAuthorizedRendererSender(event, 'demo') || isAuthorizedRendererSender(event, 'overlay');
+}
+
+function rejectUnauthorizedIpcSender(): never {
+  throw new Error('Unauthorized Rainpane IPC sender');
 }
 
 function activateRainpane() {
@@ -71,17 +161,30 @@ function broadcastSettings() {
   trayController?.refresh();
 }
 
-function currentRuntimeState(): RuntimeState {
+function currentRuntimeState(displayId?: number): RuntimeState {
+  const refractionState = refractionManager.getState();
   return {
     onBatteryPower: powerMonitor.isOnBatteryPower(),
     idleDeepeningActive: powerMonitor.getSystemIdleTime() >= IDLE_DEEPENING_SECONDS,
+    overlayEnabled,
+    prefersReducedTransparency: nativeTheme.prefersReducedTransparency,
+    shouldUseHighContrastColors: nativeTheme.shouldUseHighContrastColors,
+    shouldDifferentiateWithoutColor: Boolean(
+      (nativeTheme as NativeThemeWithDifferentiateWithoutColor).shouldDifferentiateWithoutColor,
+    ),
+    photorealRefractionStatus: getPhotorealRefractionStatusForDisplay(refractionState, displayId),
   };
 }
 
 function broadcastRuntimeState() {
-  const runtime = currentRuntimeState();
-  for (const window of liveWindows()) {
-    window.webContents.send('runtime:changed', runtime);
+  for (const entry of overlayWindows) {
+    if (!entry.window.isDestroyed()) {
+      entry.window.webContents.send('runtime:changed', currentRuntimeState(entry.display.id));
+    }
+  }
+
+  if (demoWindow && !demoWindow.isDestroyed()) {
+    demoWindow.webContents.send('runtime:changed', currentRuntimeState());
   }
 }
 
@@ -104,6 +207,7 @@ function updateSettings(nextSettings: unknown) {
   if (settings.displayMode !== previousDisplayMode) {
     syncOverlayWindows();
   }
+  syncPhotorealRefraction();
   broadcastSettings();
   broadcastActiveWindow();
 }
@@ -159,11 +263,24 @@ function targetDisplays() {
 }
 
 function demoHasFocus() {
-  return Boolean(demoWindow && !demoWindow.isDestroyed() && demoWindow.isFocused());
+  return demoOpening || Boolean(demoWindow && !demoWindow.isDestroyed() && demoWindow.isFocused());
 }
 
 function shouldShowOverlay() {
   return overlayEnabled && !demoHasFocus();
+}
+
+function syncPhotorealRefraction() {
+  if (isQuitting) {
+    refractionManager.stop();
+    return;
+  }
+
+  refractionManager.sync({
+    enabled: settings.photorealRefractionEnabled && overlayEnabled,
+    visible: shouldShowOverlay() && systemAllowsCapture(captureAvailability),
+    overlays: overlayWindows,
+  });
 }
 
 function applyOverlayVisibility() {
@@ -179,6 +296,7 @@ function applyOverlayVisibility() {
       entry.window.hide();
     }
   }
+  syncPhotorealRefraction();
   trayController?.refresh();
 }
 
@@ -188,7 +306,7 @@ function createOverlayForDisplay(display: Display) {
 
   overlayWindow.webContents.once('did-finish-load', () => {
     overlayWindow.webContents.send('settings:changed', settings);
-    overlayWindow.webContents.send('runtime:changed', currentRuntimeState());
+    overlayWindow.webContents.send('runtime:changed', currentRuntimeState(entry.display.id));
     overlayWindow.webContents.send('active-window:changed', activeWindowStateForDisplay(display));
   });
   overlayWindow.once('ready-to-show', () => {
@@ -201,6 +319,7 @@ function createOverlayForDisplay(display: Display) {
   });
   overlayWindow.on('closed', () => {
     overlayWindows = overlayWindows.filter((candidate) => candidate.window !== overlayWindow);
+    syncPhotorealRefraction();
   });
 
   return entry;
@@ -228,6 +347,7 @@ function syncOverlayWindows() {
 
     overlayWindows.push(createOverlayForDisplay(display));
   }
+  syncPhotorealRefraction();
 }
 
 function ensureDemoWindow() {
@@ -239,6 +359,7 @@ function ensureDemoWindow() {
   }
 
   demoWindow = createDemoWindow();
+  demoOpening = true;
   demoWindow.webContents.once('did-finish-load', () => {
     demoWindow?.webContents.send('settings:changed', settings);
     demoWindow?.webContents.send('runtime:changed', currentRuntimeState());
@@ -256,6 +377,7 @@ function ensureDemoWindow() {
 
   demoWindow.on('closed', () => {
     demoWindow = null;
+    demoOpening = false;
     applyOverlayVisibility();
   });
   demoWindow.on('focus', () => {
@@ -265,8 +387,10 @@ function ensureDemoWindow() {
     applyOverlayVisibility();
   });
   demoWindow.once('ready-to-show', () => {
+    demoOpening = false;
     activateRainpane();
     demoWindow?.focus();
+    applyOverlayVisibility();
   });
 
   return demoWindow;
@@ -276,12 +400,14 @@ function toggleOverlay() {
   syncOverlayWindows();
   overlayEnabled = !overlayEnabled;
   applyOverlayVisibility();
+  broadcastRuntimeState();
 }
 
 function setOverlayVisible(visible: boolean) {
   syncOverlayWindows();
   overlayEnabled = visible;
   applyOverlayVisibility();
+  broadcastRuntimeState();
 }
 
 async function checkForUpdates(showCurrentDialog = true): Promise<UpdateCheckResult> {
@@ -418,16 +544,58 @@ function startRuntimeMonitoring() {
 
   powerMonitor.on('on-battery', broadcastRuntimeState);
   powerMonitor.on('on-ac', broadcastRuntimeState);
+  powerMonitor.on('suspend', handleSystemSuspend);
+  powerMonitor.on('resume', handleSystemResume);
+  powerMonitor.on('lock-screen', handleScreenLock);
+  powerMonitor.on('unlock-screen', handleScreenUnlock);
+  nativeTheme.on('updated', broadcastRuntimeState);
   runtimeMonitor = setInterval(broadcastRuntimeState, 5000);
   broadcastRuntimeState();
 }
 
+function updateCaptureAvailability(event: CaptureAvailabilityEvent) {
+  const previouslyAllowed = systemAllowsCapture(captureAvailability);
+  captureAvailability = reduceCaptureAvailability(captureAvailability, event);
+  if (previouslyAllowed !== systemAllowsCapture(captureAvailability)) {
+    syncPhotorealRefraction();
+    broadcastRuntimeState();
+  }
+}
+
+function handleSystemSuspend() {
+  updateCaptureAvailability('suspend');
+}
+
+function handleSystemResume() {
+  updateCaptureAvailability('resume');
+}
+
+function handleScreenLock() {
+  updateCaptureAvailability('lock');
+}
+
+function handleScreenUnlock() {
+  updateCaptureAvailability('unlock');
+}
+
+function registerDisplayMonitoring() {
+  const syncDisplays = () => {
+    syncOverlayWindows();
+    broadcastActiveWindow();
+  };
+
+  screen.on('display-added', syncDisplays);
+  screen.on('display-removed', syncDisplays);
+  screen.on('display-metrics-changed', syncDisplays);
+}
+
 function createApplication() {
-  syncOverlayWindows();
   ensureDemoWindow();
+  syncOverlayWindows();
 
   trayController = createRainpaneTray(() => ({
     showOverlay: overlayEnabled,
+    mode: settings.mode,
     rainEnabled: settings.rainEnabled,
     fogEnabled: settings.fogEnabled,
     debugMode: settings.debugMode,
@@ -438,6 +606,7 @@ function createApplication() {
     displayMode: settings.displayMode,
     accessibilityTrusted: isAccessibilityTrusted(),
     toggleOverlay,
+    setMode: (mode) => updateSettings({ ...settings, mode, ...MODE_DEFAULTS[mode] }),
     toggleRain: () => updateSettings({ ...settings, rainEnabled: !settings.rainEnabled }),
     toggleFog: () => updateSettings({ ...settings, fogEnabled: !settings.fogEnabled }),
     toggleDebug: () => updateSettings({ ...settings, debugMode: !settings.debugMode }),
@@ -543,27 +712,83 @@ if (process.platform === 'darwin') {
   app.setActivationPolicy('regular');
 }
 
-ipcMain.handle('settings:get', () => settings);
-ipcMain.on('settings:update', (_event, nextSettings: unknown) => {
+ipcMain.handle('settings:get', (event) => {
+  if (!isAuthorizedRainpaneRenderer(event)) {
+    rejectUnauthorizedIpcSender();
+  }
+  return settings;
+});
+ipcMain.on('settings:update', (event, nextSettings: unknown) => {
+  if (!isAuthorizedRendererSender(event, 'demo')) {
+    return;
+  }
   updateSettings(nextSettings);
 });
-ipcMain.on('settings:reset', () => {
+ipcMain.on('settings:reset', (event) => {
+  if (!isAuthorizedRendererSender(event, 'demo')) {
+    return;
+  }
   updateSettings(DEFAULT_SETTINGS);
 });
-ipcMain.on('overlay:set-visible', (_event, visible: unknown) => {
+ipcMain.on('overlay:set-visible', (event, visible: unknown) => {
+  if (!isAuthorizedRendererSender(event, 'demo')) {
+    return;
+  }
   if (typeof visible === 'boolean') {
     setOverlayVisible(visible);
   }
 });
-ipcMain.handle('active-window:get', () => activeWindowStateForDisplay(screen.getPrimaryDisplay()));
-ipcMain.handle('runtime:get', () => currentRuntimeState());
-ipcMain.handle('updates:check', () => checkForUpdates(false));
+ipcMain.on('refraction:frame', (event, input: unknown) => {
+  if (
+    !isAuthorizedRendererSender(event, 'overlay') ||
+    !settings.photorealRefractionEnabled ||
+    !shouldShowOverlay() ||
+    !systemAllowsCapture(captureAvailability)
+  ) {
+    return;
+  }
+  const frame = parsePhotorealRefractionFrame(input);
+  if (frame) {
+    refractionManager.submitFrame(event.sender.id, frame);
+  }
+});
+ipcMain.on('refraction:open-settings', (event) => {
+  if (!isAuthorizedRendererSender(event, 'demo')) {
+    return;
+  }
+  openScreenRecordingSettings();
+});
+ipcMain.handle('active-window:get', (event) => {
+  if (!isAuthorizedRendererSender(event, 'overlay')) {
+    rejectUnauthorizedIpcSender();
+  }
+  const overlayEntry = overlayWindows.find((entry) => entry.window.webContents.id === event.sender.id);
+  if (!overlayEntry) {
+    rejectUnauthorizedIpcSender();
+  }
+  return activeWindowStateForDisplay(overlayEntry.display);
+});
+ipcMain.handle('runtime:get', (event) => {
+  if (!isAuthorizedRainpaneRenderer(event)) {
+    rejectUnauthorizedIpcSender();
+  }
+  return currentRuntimeState(
+    getPhotorealRefractionDisplayIdForSender(overlayWindows, event.sender.id),
+  );
+});
+ipcMain.handle('updates:check', (event) => {
+  if (!isAuthorizedRendererSender(event, 'demo')) {
+    rejectUnauthorizedIpcSender();
+  }
+  return checkForUpdates(false);
+});
 
 app.whenReady().then(async () => {
   settings = await loadSettings();
   activateRainpane();
   createApplicationMenu();
   createApplication();
+  registerDisplayMonitoring();
 
   app.on('activate', () => {
     ensureDemoWindow();
@@ -579,6 +804,12 @@ app.on('second-instance', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  refractionManager.stop();
+  powerMonitor.off('suspend', handleSystemSuspend);
+  powerMonitor.off('resume', handleSystemResume);
+  powerMonitor.off('lock-screen', handleScreenLock);
+  powerMonitor.off('unlock-screen', handleScreenUnlock);
+  nativeTheme.off('updated', broadcastRuntimeState);
   if (activeWindowPoll) {
     clearInterval(activeWindowPoll);
     activeWindowPoll = null;

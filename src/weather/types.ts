@@ -1,6 +1,14 @@
 export type WeatherMode = 'cozy-rain' | 'storm-lock-in' | 'night-drive' | 'greyglass' | 'winterglass';
 export type DisplayMode = 'primary' | 'all';
 export type WeatherIntensity = 'mist' | 'rain' | 'downpour' | 'frosted';
+export type PhotorealRefractionStatus =
+  | 'off'
+  | 'paused'
+  | 'starting'
+  | 'live'
+  | 'permission-needed'
+  | 'unsupported'
+  | 'error';
 
 export interface Rect {
   x: number;
@@ -37,6 +45,7 @@ export interface WeatherSettings {
   fullRainWhileMoving: boolean;
   lockInDimmingEnabled: boolean;
   idleDeepeningEnabled: boolean;
+  photorealRefractionEnabled: boolean;
   displayMode: DisplayMode;
   renderBudget?: 'standard' | 'conservative';
 }
@@ -113,18 +122,42 @@ export interface EdgeRunoffDrop {
 }
 
 export interface Droplet {
+  id: number;
   kind: 'micro' | 'bead' | 'pane';
+  state: 'pinned' | 'creeping' | 'running';
   x: number;
   y: number;
+  prevX: number;
+  prevY: number;
   radiusX: number;
   radiusY: number;
   opacity: number;
   age: number;
   lifetime: number;
-  slideSpeed: number;
-  driftX: number;
-  wobble: number;
+  velocityX: number;
+  velocityY: number;
+  mass: number;
+  pinning: number;
+  hold: number;
+  runAge: number;
+  mergePulse: number;
   seed: number;
   refraction: number;
   highlight: number;
+}
+
+export interface PhotorealRefractionDroplet {
+  x: number;
+  y: number;
+  radiusX: number;
+  radiusY: number;
+  opacity: number;
+  refraction: number;
+  seed: number;
+}
+
+export interface PhotorealRefractionFrame {
+  viewport: { width: number; height: number };
+  protectedMask: Rect | null;
+  droplets: PhotorealRefractionDroplet[];
 }

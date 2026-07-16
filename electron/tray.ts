@@ -1,7 +1,9 @@
 import { Menu, Tray, nativeImage } from 'electron';
+import type { WeatherMode } from './settings.js';
 
 interface TrayActions {
   showOverlay: boolean;
+  mode: WeatherMode;
   rainEnabled: boolean;
   fogEnabled: boolean;
   debugMode: boolean;
@@ -12,6 +14,7 @@ interface TrayActions {
   displayMode: 'primary' | 'all';
   accessibilityTrusted: boolean;
   toggleOverlay: () => void;
+  setMode: (mode: WeatherMode) => void;
   toggleRain: () => void;
   toggleFog: () => void;
   toggleDebug: () => void;
@@ -26,6 +29,14 @@ interface TrayActions {
   checkForUpdates: () => void;
   quit: () => void;
 }
+
+const SCENES: Array<{ id: WeatherMode; label: string }> = [
+  { id: 'cozy-rain', label: 'Cozy Rain' },
+  { id: 'storm-lock-in', label: 'Storm Lock-in' },
+  { id: 'night-drive', label: 'Night Drive' },
+  { id: 'greyglass', label: 'Greyglass' },
+  { id: 'winterglass', label: 'Winterglass' },
+];
 
 const ICON_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
@@ -53,6 +64,15 @@ export function createRainpaneTray(getActions: () => TrayActions) {
         click: actions.toggleOverlay,
       },
       { type: 'separator' },
+      {
+        label: 'Scene',
+        submenu: SCENES.map((scene) => ({
+          label: scene.label,
+          type: 'radio' as const,
+          checked: actions.mode === scene.id,
+          click: () => actions.setMode(scene.id),
+        })),
+      },
       {
         label: 'Rain',
         type: 'checkbox',

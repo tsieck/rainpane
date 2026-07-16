@@ -4,6 +4,9 @@ dist-electron/
 release/
 build/icon.iconset/
 build/icon-*.png
+build/native/
+build/.swift-module-cache/
+/media/
 coverage/
 .DS_Store
 *.log

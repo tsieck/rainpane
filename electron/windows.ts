@@ -26,6 +26,17 @@ function loadRenderer(window: BrowserWindow, view: RainpaneView, query: Record<s
   });
 }
 
+function denyUnexpectedRendererNavigation(window: BrowserWindow) {
+  window.webContents.on('will-navigate', (event) => {
+    // Keep Vite's full-page development reload working, but never let page
+    // content move this privileged webContents to a different document.
+    if (event.url !== window.webContents.getURL()) {
+      event.preventDefault();
+    }
+  });
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+}
+
 export function createOverlayWindow(display: Display = screen.getPrimaryDisplay(), showOnReady = true) {
   const { x, y, width, height } = display.bounds;
 
@@ -52,6 +63,8 @@ export function createOverlayWindow(display: Display = screen.getPrimaryDisplay(
       sandbox: false,
     },
   });
+
+  denyUnexpectedRendererNavigation(overlayWindow);
 
   // Windows can clamp frameless overlay windows to the primary work-area size
   // in mixed-DPI layouts. Lift the maximum size, then reapply display bounds so
@@ -87,6 +100,8 @@ export function createDemoWindow() {
       sandbox: false,
     },
   });
+
+  denyUnexpectedRendererNavigation(demoWindow);
 
   demoWindow.once('ready-to-show', () => {
     demoWindow.show();
