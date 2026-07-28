@@ -1,7 +1,8 @@
 # Rainpane 0.1.12 release
 
 Date: 2026-07-28
-Status: stable release source prepared; signed artifact publication evidence pending
+Status: published and verified
+Release: https://github.com/tsieck/rainpane/releases/tag/v0.1.12
 
 ## Release summary
 
@@ -11,47 +12,49 @@ Rainpane remains local-only. Native frames are kept in memory, are not recorded 
 
 ## Verified source baseline
 
-These checks were completed for the implementation promoted from `0.1.12-rc.2`. Final public-artifact checks are tracked separately below and must be completed against the exact uploaded files.
+The signed artifacts were built from release commit `51da14d0fc5b448d76175dbe985def1ff7d02b21`. Tag `v0.1.12` targets merge commit `12f4009ce8b4ba260f4da68ef78327278ff1cf78`; both commits resolve to tree `b716dee1be83c3e31c0fa4df2922e54d8a98b33a`, so the tagged source tree exactly matches the signed build tree.
 
 | Check | Result | Evidence and limits |
 | --- | --- | --- |
-| Automated tests | Pass | `npm test -- --run`: 19 test files and 117 tests passed for the promoted implementation baseline. |
-| Production build | Pass | `npm run build` completed for the promoted implementation baseline, including the native helper, renderer TypeScript, Vite bundle, and Electron TypeScript. |
+| Automated tests | Pass | `npx vitest run --exclude 'Prime Bloom/**'`: 19 Rainpane test files and 117 tests passed. |
+| Production build | Pass | `npm run build` completed, including the Swift/Metal helper, renderer TypeScript, Vite bundle, and Electron TypeScript. |
 | Stable version metadata | Pass | The root package metadata and lockfile package entry identify version `0.1.12`. |
-| Local package and archive integrity | Pass | The rc.2 baseline produced an arm64 app, DMG, ZIP, and blockmaps; `hdiutil verify` and `unzip -t` passed. These ad-hoc artifacts are not the stable public artifacts. |
-| Local code-signature structure | Pass | Strict verification passed for the ad-hoc packaged app and embedded refraction helper. This does not substitute for Developer ID verification of the stable artifacts. |
+| Package and archive integrity | Pass | The final arm64 DMG and ZIP passed `hdiutil verify` and `unzip -tq`; the Windows x64 ZIP also passed `unzip -tq`. |
+| Code-signature structure | Pass | Strict verification passed for the final Developer ID app and embedded refraction helper extracted independently from both Mac artifacts. |
 | Minimum system metadata | Pass | The app and native helper both report macOS 13.0 as their minimum system version. |
-| Packaged-app launch | Pass | The rc.2 baseline launched from a fresh profile and remained running with native capture disabled by default. |
-| Default privacy boundary | Pass | Photoreal Refraction defaults off; the fresh-profile packaged baseline did not run a capture helper while the feature was off. |
+| Packaged-app launch | Pass | The signed DMG app launched from a fresh profile and remained healthy through the launch check. |
+| Default privacy boundary | Pass | Photoreal Refraction defaults off; the fresh-profile signed app did not run a capture helper while the feature was off. |
 | Browser demo regression | Pass | Scene switching, focus-pane switching, overlay pause/resume, and settings controls passed without console warnings or errors. This did not exercise permission-gated native capture. |
 | Renderer trust boundary | Pass | Privileged IPC is restricted to managed Rainpane contents, unexpected navigation and popups are denied, and the packaged renderer uses a nonce-based restrictive CSP. |
 
 ## Final signed artifact verification
 
-The following entries intentionally remain pending until the final `0.1.12` artifacts have been built, signed, notarized, stapled, and tested. Replace each placeholder with command output or an exact result before publishing this document as completed release evidence.
+The final `0.1.12` Mac artifacts were signed, notarized, stapled, assessed, and published. GitHub reports SHA-256 digests for all six uploaded assets, and every digest matches the corresponding local release file.
 
-| Gate | Status | Required evidence |
+| Gate | Status | Evidence |
 | --- | --- | --- |
-| Release preflight | Pending | Record the successful `npm run release:preflight:mac` result and the selected Developer ID identity without including credentials. |
-| Developer ID app signature | Pending | Record `codesign --verify --deep --strict --verbose=2` success for the final packaged `Rainpane.app`. |
-| Embedded helper signature | Pending | Record `codesign --verify --strict --verbose=2` success for the final `rainpane-refraction-helper`. |
-| Signing authority | Pending | Record the `codesign -dv --verbose=4` Authority, TeamIdentifier, and runtime flags for the final app. |
-| Notarization submission | Pending | Record the accepted notarization request ID and completion status. Do not record Apple credentials. |
-| Stapling | Pending | Record `xcrun stapler validate` success for the final app and DMG where applicable. |
-| Gatekeeper assessment | Pending | Record `spctl --assess --type execute --verbose=4` success for an app installed from the final DMG. |
-| DMG integrity | Pending | Record `hdiutil verify` success for the final DMG. |
-| ZIP integrity | Pending | Record `unzip -t` success for the final ZIP. |
-| Fresh-download launch | Pending | Download the published artifact into a clean location, install it, launch it, and record the observed version and first-run behavior. |
-| GitHub publication | Pending | Record the immutable release URL and confirm the uploaded filenames match the hashes below. |
+| Release preflight | Pass | `npm run release:preflight:mac` selected `Developer ID Application: TRAVIS MICHAEL SIECK (23P7GUVP97)`. |
+| Developer ID app signature | Pass | `codesign --verify --deep --strict --verbose=2` passed for the app from both the DMG and ZIP. |
+| Embedded helper signature | Pass | `codesign --verify --strict --verbose=2` passed for `rainpane-refraction-helper` from both Mac artifacts. |
+| Signing authority | Pass | Authority is `Developer ID Application: TRAVIS MICHAEL SIECK (23P7GUVP97)`; TeamIdentifier is `23P7GUVP97`; hardened runtime is enabled. |
+| Notarization submission | Pass | Apple accepted request `7396ed88-e9b4-4208-b5c1-01f66f7bb6d0`. |
+| Stapling | Pass | `xcrun stapler validate -v` passed for the app independently extracted from the DMG and ZIP. |
+| Gatekeeper assessment | Pass | `spctl --assess --type execute --verbose=4` accepted the DMG-installed app as `Notarized Developer ID`. |
+| DMG integrity | Pass | `hdiutil verify` reported the final DMG as valid. |
+| ZIP integrity | Pass | `unzip -tq` reported no errors for both final ZIP archives. |
+| Public artifact equivalence | Pass | GitHub's uploaded-asset digests match the locally verified and launched artifact hashes exactly. |
+| GitHub publication | Pass | `v0.1.12` is public at the release URL above with six assets in uploaded state. |
 
 ## Final artifact record
 
-Do not copy hashes from rc.2. Compute these values from the exact stable files uploaded to GitHub.
-
 | Artifact | Size | SHA-256 |
 | --- | ---: | --- |
-| `Rainpane-0.1.12-arm64.dmg` | Pending | Pending |
-| `Rainpane-0.1.12-arm64.zip` | Pending | Pending |
+| `Rainpane-0.1.12-arm64.dmg` | 111,765,072 bytes | `8bd0ccd3ec622338624c94ab6c385d3285bcc4098799dea668da8269b71e667c` |
+| `Rainpane-0.1.12-arm64.dmg.blockmap` | 117,809 bytes | `d8c760cf88cb3a4eedb9c0c5d4d9cbe78b50c38fe58713afff6858b3078f3466` |
+| `Rainpane-0.1.12-arm64.zip` | 107,570,630 bytes | `98803c258a3284aae9ec3203840983dd43249b2d82296e131e0b215e1cc31594` |
+| `Rainpane-0.1.12-arm64.zip.blockmap` | 112,774 bytes | `5e1efdc74b3a53773a8a4a8768d26b231a1ff6a986a99ee8da88cce30134c13f` |
+| `latest-mac.yml` | 504 bytes | `56f02086d2cfe39d51849fa0311810661af3e278107ad4d009c22e2e7f8b46b9` |
+| `Rainpane-0.1.12-x64-win.zip` | 133,319,659 bytes | `88ec704ea4dbdc43cf7039f9e294657e91c9816d871142a0db025672ab4257d9` |
 
 ## Known validation boundaries
 
@@ -61,4 +64,4 @@ These open hardware scenarios do not change the default privacy posture: Photore
 
 ## Publication decision
 
-Publish `0.1.12` only after every final signed-artifact gate above has a concrete result and the DMG/ZIP hashes have been computed from the exact uploaded files. Until then, this document describes a prepared stable source tree, not a completed notarized public release.
+Rainpane `0.1.12` was published as the repository's latest stable release after every non-hardware release gate above passed. The Windows archive is intentionally labeled unsigned; Windows runtime validation and the hardware/manual Mac scenarios listed above remain explicit follow-up work.
