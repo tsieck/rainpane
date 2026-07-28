@@ -21,13 +21,49 @@ interface GitHubRelease {
 
 const LATEST_RELEASE_URL = 'https://api.github.com/repos/tsieck/rainpane/releases/latest';
 
-export function parseVersion(value: string): [number, number, number] | null {
-  const match = value.match(/(\d+)\.(\d+)\.(\d+)/);
+export interface ParsedVersion {
+  major: number;
+  minor: number;
+  patch: number;
+  prerelease: string[];
+}
+
+export function parseVersion(value: string): ParsedVersion | null {
+  const match = value.match(
+    /(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?/,
+  );
   if (!match) {
     return null;
   }
 
-  return [Number(match[1]), Number(match[2]), Number(match[3])];
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+    prerelease: match[4]?.split('.') ?? [],
+  };
+}
+
+function formatVersion(version: ParsedVersion) {
+  const core = `${version.major}.${version.minor}.${version.patch}`;
+  return version.prerelease.length > 0 ? `${core}-${version.prerelease.join('.')}` : core;
+}
+
+function comparePrereleaseIdentifiers(first: string, second: string) {
+  const firstIsNumeric = /^\d+$/.test(first);
+  const secondIsNumeric = /^\d+$/.test(second);
+
+  if (firstIsNumeric && secondIsNumeric) {
+    const firstNumber = Number(first);
+    const secondNumber = Number(second);
+    return firstNumber === secondNumber ? 0 : firstNumber > secondNumber ? 1 : -1;
+  }
+
+  if (firstIsNumeric !== secondIsNumeric) {
+    return firstIsNumeric ? -1 : 1;
+  }
+
+  return first === second ? 0 : first > second ? 1 : -1;
 }
 
 export function compareVersions(a: string, b: string) {
@@ -37,9 +73,33 @@ export function compareVersions(a: string, b: string) {
     return 0;
   }
 
-  for (let index = 0; index < first.length; index += 1) {
-    if (first[index] !== second[index]) {
-      return first[index] > second[index] ? 1 : -1;
+  const firstCore = [first.major, first.minor, first.patch];
+  const secondCore = [second.major, second.minor, second.patch];
+  for (let index = 0; index < firstCore.length; index += 1) {
+    if (firstCore[index] !== secondCore[index]) {
+      return firstCore[index] > secondCore[index] ? 1 : -1;
+    }
+  }
+
+  if (first.prerelease.length === 0 || second.prerelease.length === 0) {
+    if (first.prerelease.length === second.prerelease.length) {
+      return 0;
+    }
+
+    return first.prerelease.length === 0 ? 1 : -1;
+  }
+
+  const identifierCount = Math.max(first.prerelease.length, second.prerelease.length);
+  for (let index = 0; index < identifierCount; index += 1) {
+    const firstIdentifier = first.prerelease[index];
+    const secondIdentifier = second.prerelease[index];
+    if (firstIdentifier === undefined || secondIdentifier === undefined) {
+      return firstIdentifier === undefined ? -1 : 1;
+    }
+
+    const comparison = comparePrereleaseIdentifiers(firstIdentifier, secondIdentifier);
+    if (comparison !== 0) {
+      return comparison;
     }
   }
 
@@ -93,7 +153,8 @@ export async function checkForGitHubUpdate(
   const release = (await response.json()) as GitHubRelease;
   const tagName = typeof release.tag_name === 'string' ? release.tag_name : null;
   const releaseUrl = typeof release.html_url === 'string' ? release.html_url : null;
-  const latestVersion = tagName ? parseVersion(tagName)?.join('.') ?? null : null;
+  const parsedLatestVersion = tagName ? parseVersion(tagName) : null;
+  const latestVersion = parsedLatestVersion ? formatVersion(parsedLatestVersion) : null;
   const asset = chooseUpdateAsset(release, platform, arch);
   const hasUpdate = latestVersion ? compareVersions(latestVersion, currentVersion) > 0 : false;
 

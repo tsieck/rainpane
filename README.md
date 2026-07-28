@@ -67,7 +67,7 @@ npm start
 
 ## Build & Release
 
-The current development release candidate is `0.1.12-rc.2`. Its verified baseline, native-refraction boundary, and remaining hands-on QA are recorded in [the rc.2 closeout](docs/RELEASE_CANDIDATE_0.1.12-rc.2.md). The earlier [rc.1 report](docs/RELEASE_CANDIDATE_0.1.12-rc.1.md) remains as historical evidence for that build.
+The current stable release is `0.1.12`. Its verified implementation baseline, native-refraction boundary, and signed-release evidence are recorded in [the 0.1.12 release record](docs/RELEASE_0.1.12.md). The earlier [rc.2 closeout](docs/RELEASE_CANDIDATE_0.1.12-rc.2.md) and [rc.1 report](docs/RELEASE_CANDIDATE_0.1.12-rc.1.md) remain as historical evidence for those builds.
 
 Create an unpacked local app:
 
