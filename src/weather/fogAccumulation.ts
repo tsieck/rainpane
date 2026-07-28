@@ -110,13 +110,18 @@ export class FogAccumulator {
 
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = settings.lowPowerMode || settings.renderBudget === 'conservative' ? 'medium' : 'high';
-      ctx.filter = `blur(${settings.renderBudget === 'conservative' ? 12 : settings.lowPowerMode ? 14 : 18}px)`;
-      const bleed = settings.renderBudget === 'conservative' ? 16 : settings.lowPowerMode ? 18 : 22;
-      ctx.drawImage(this.fogCanvas, -bleed, -bleed, width + bleed * 2, height + bleed * 2);
-      ctx.filter = 'none';
+      if (settings.renderBudget === 'conservative') {
+        ctx.globalAlpha = 0.72;
+        ctx.drawImage(this.fogCanvas, 0, 0, width, height);
+      } else {
+        ctx.filter = `blur(${settings.lowPowerMode ? 10 : 16}px)`;
+        const bleed = settings.lowPowerMode ? 14 : 20;
+        ctx.drawImage(this.fogCanvas, -bleed, -bleed, width + bleed * 2, height + bleed * 2);
+        ctx.filter = 'none';
+      }
     }
 
-    ctx.globalAlpha = settings.fogIntensity * 0.08;
+    ctx.globalAlpha = settings.fogIntensity * (settings.renderBudget === 'conservative' ? 0.045 : 0.08);
     ctx.fillStyle = preset.palette.shadow;
     ctx.fillRect(0, 0, width, height);
 

@@ -1,6 +1,6 @@
 {
   "name": "rainpane",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "private": true,
   "description": "Ambient focus overlay prototype with procedural rain, fog, and droplets.",
   "license": "MIT",
@@ -9,14 +9,16 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"npm:dev:electron\"",
-    "dev:electron": "wait-on tcp:5173 && tsc -p electron/tsconfig.json && VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "dev:electron": "wait-on tcp:5173 && npm run build:native && tsc -p electron/tsconfig.json && VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "build:native": "node scripts/build-refraction-helper.mjs",
     "generate:icons": "node scripts/generate-icons.mjs",
     "clean:electron-xattrs": "node scripts/clean-electron-xattrs.mjs",
-    "build": "tsc --noEmit && vite build && tsc -p electron/tsconfig.json",
-    "package": "npm run generate:icons && npm run clean:electron-xattrs && npm run build && electron-builder --dir --config.directories.output=/tmp/rainpane-release",
+    "release:preflight:mac": "node scripts/verify-macos-release-env.mjs",
+    "build": "npm run build:native && tsc --noEmit && vite build && tsc -p electron/tsconfig.json",
+    "package": "npm run generate:icons && npm run clean:electron-xattrs && npm run build && electron-builder --dir --config.directories.output=/tmp/rainpane-release --config.mac.identity=- --config.mac.notarize=false --config.mac.entitlements=build/entitlements.mac.local.plist --config.mac.entitlementsInherit=build/entitlements.mac.local.inherit.plist",
     "dist": "npm run dist:mac",
-    "dist:mac": "npm run generate:icons && npm run clean:electron-xattrs && npm run build && electron-builder --mac --config.directories.output=/tmp/rainpane-release",
-    "dist:mac:unsigned": "npm run generate:icons && npm run clean:electron-xattrs && npm run build && electron-builder --mac --config.directories.output=/tmp/rainpane-release --config.mac.identity=- --config.mac.notarize=false",
+    "dist:mac": "npm run release:preflight:mac && npm run generate:icons && npm run clean:electron-xattrs && npm run build && electron-builder --mac --config.directories.output=/tmp/rainpane-release",
+    "dist:mac:unsigned": "npm run generate:icons && npm run clean:electron-xattrs && npm run build && electron-builder --mac --config.directories.output=/tmp/rainpane-release --config.mac.identity=- --config.mac.notarize=false --config.mac.entitlements=build/entitlements.mac.local.plist --config.mac.entitlementsInherit=build/entitlements.mac.local.inherit.plist",
     "dist:win": "npm run generate:icons && npm run build && electron-builder --win zip --x64 --config.directories.output=/tmp/rainpane-release",
     "dist:win:arm64": "npm run generate:icons && npm run build && electron-builder --win zip --arm64 --config.directories.output=/tmp/rainpane-release",
     "preview": "vite preview",
@@ -57,6 +59,7 @@
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "build/icon.icns",
+      "minimumSystemVersion": "13.0",
       "target": [
         "dmg",
         "zip"
@@ -66,6 +69,12 @@
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.inherit.plist",
       "notarize": true,
+      "extraResources": [
+        {
+          "from": "build/native/rainpane-refraction-helper",
+          "to": "native/rainpane-refraction-helper"
+        }
+      ],
       "extendInfo": {
         "NSAppleEventsUsageDescription": "Rainpane uses Apple Events only as a fallback to read the frontmost window's title, position, and size for the clear focus pane. It does not read or record window contents."
       }

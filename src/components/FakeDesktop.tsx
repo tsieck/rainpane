@@ -1,47 +1,54 @@
-import { useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
+import { MODE_PRESETS } from '../state/settingsStore';
 import { RainCanvas } from '../weather/RainCanvas';
 import type { Rect, WeatherSettings } from '../weather/types';
 import { FakeWindow, type FakeWindowModel } from './FakeWindow';
 
+const STAGE_WIDTH = 1000;
+const STAGE_HEIGHT = 760;
+const WINDOW_GUTTER = 20;
+
 const INITIAL_WINDOWS: FakeWindowModel[] = [
   {
     id: 'browser',
-    title: 'Browser',
-    role: 'Research workspace',
-    x: 72,
-    y: 72,
-    width: 470,
-    height: 330,
+    kind: 'browser',
+    title: 'Research',
+    role: 'Browser · Field notes',
+    x: 64,
+    y: 292,
+    width: 520,
+    height: 326,
     z: 3,
-    content: ['Design notes for ambient focus', 'Transparent overlay architecture', 'Canvas weather rendering prototype'],
   },
   {
     id: 'music',
+    kind: 'music',
     title: 'Music',
     role: 'Now playing',
-    x: 575,
-    y: 110,
+    x: 634,
+    y: 308,
     width: 300,
-    height: 250,
+    height: 270,
     z: 2,
-    content: ['Low Clouds - Side A', 'Rain Room Mix', 'Volume 34%'],
   },
   {
     id: 'notes',
+    kind: 'notes',
     title: 'Notes',
-    role: 'Scratchpad',
-    x: 245,
-    y: 425,
-    width: 410,
-    height: 240,
+    role: 'A thought worth keeping',
+    x: 326,
+    y: 522,
+    width: 420,
+    height: 190,
     z: 1,
-    content: ['Keep the active task clear.', 'Let the rest fade into rain.', 'No timers. No blocking.'],
   },
 ];
 
 interface FakeDesktopProps {
   settings: WeatherSettings;
+  previewCleared: boolean;
+  onPreviewClearedChange: (clear: boolean) => void;
 }
 
 interface DragState {
@@ -51,112 +58,307 @@ interface DragState {
   offsetY: number;
 }
 
-export function FakeDesktop({ settings }: FakeDesktopProps) {
-  const desktopRef = useRef<HTMLDivElement | null>(null);
-  const [windows, setWindows] = useState(INITIAL_WINDOWS);
+interface StageMetrics {
+  width: number;
+  height: number;
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+}
+
+const INITIAL_STAGE_METRICS: StageMetrics = {
+  width: STAGE_WIDTH,
+  height: STAGE_HEIGHT,
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+};
+
+function freshWindows() {
+  return INITIAL_WINDOWS.map((windowModel) => ({ ...windowModel }));
+}
+
+function calculateStageMetrics(width: number, height: number): StageMetrics {
+  const scale = Math.max(0.01, Math.min(width / STAGE_WIDTH, height / STAGE_HEIGHT));
+  return {
+    width,
+    height,
+    scale,
+    offsetX: (width - STAGE_WIDTH * scale) / 2,
+    offsetY: (height - STAGE_HEIGHT * scale) / 2,
+  };
+}
+
+function bringToFront(windows: FakeWindowModel[], id: string) {
+  const ordered = [...windows].sort((first, second) => first.z - second.z);
+  const target = ordered.find((windowModel) => windowModel.id === id);
+  if (!target) {
+    return windows;
+  }
+
+  return [...ordered.filter((windowModel) => windowModel.id !== id), target].map((windowModel, index) => ({
+    ...windowModel,
+    z: index + 1,
+  }));
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
+}
+
+export function FakeDesktop({ settings, previewCleared, onPreviewClearedChange }: FakeDesktopProps) {
+  const desktopRef = useRef<HTMLElement | null>(null);
+  const [windows, setWindows] = useState(freshWindows);
   const [activeId, setActiveId] = useState('browser');
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [stageMetrics, setStageMetrics] = useState<StageMetrics>(INITIAL_STAGE_METRICS);
+  const preset = MODE_PRESETS[settings.mode];
 
-  const activeMask = useMemo<Rect | null>(() => {
-    const activeWindow = windows.find((windowModel) => windowModel.id === activeId);
-    if (!activeWindow) {
-      return null;
-    }
-    return {
-      x: activeWindow.x,
-      y: activeWindow.y,
-      width: activeWindow.width,
-      height: activeWindow.height,
-    };
-  }, [activeId, windows]);
-
-  const activate = (id: string) => {
-    setActiveId(id);
-    setWindows((current) => {
-      const maxZ = Math.max(...current.map((item) => item.z));
-      return current.map((item) => (item.id === id ? { ...item, z: maxZ + 1 } : item));
-    });
-  };
-
-  const startDrag = (id: string, event: ReactPointerEvent<HTMLElement>) => {
+  useLayoutEffect(() => {
     const desktop = desktopRef.current;
     if (!desktop) {
       return;
     }
 
-    activate(id);
-    const windowModel = windows.find((item) => item.id === id);
+    const measure = () => {
+      const styles = window.getComputedStyle(desktop);
+      const reservedPanelWidth = Number.parseFloat(styles.getPropertyValue('--control-panel-reserve')) || 0;
+      const width = Math.max(1, desktop.clientWidth - reservedPanelWidth);
+      const height = desktop.clientHeight;
+      if (width > 0 && height > 0) {
+        setStageMetrics(calculateStageMetrics(width, height));
+      }
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(desktop);
+    return () => observer.disconnect();
+  }, []);
+
+  const previewSettings = useMemo<WeatherSettings>(
+    () => ({
+      ...settings,
+      renderBudget: settings.lowPowerMode ? 'conservative' : 'standard',
+    }),
+    [settings],
+  );
+
+  const activeWindow = useMemo(
+    () => windows.find((windowModel) => windowModel.id === activeId) ?? null,
+    [activeId, windows],
+  );
+
+  const activeMask = useMemo<Rect | null>(() => {
+    if (settings.coverFullScreen || (settings.fullRainWhileMoving && dragState)) {
+      return null;
+    }
+
+    if (previewCleared) {
+      return { x: 0, y: 0, width: stageMetrics.width, height: stageMetrics.height };
+    }
+
+    if (!activeWindow) {
+      return null;
+    }
+
+    return {
+      x: stageMetrics.offsetX + activeWindow.x * stageMetrics.scale,
+      y: stageMetrics.offsetY + activeWindow.y * stageMetrics.scale,
+      width: activeWindow.width * stageMetrics.scale,
+      height: activeWindow.height * stageMetrics.scale,
+    };
+  }, [activeWindow, dragState, previewCleared, settings.coverFullScreen, settings.fullRainWhileMoving, stageMetrics]);
+
+  const stageStyle = useMemo<CSSProperties>(
+    () => ({
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      width: STAGE_WIDTH,
+      height: STAGE_HEIGHT,
+      zIndex: 10,
+      transform: `translate3d(${stageMetrics.offsetX}px, ${stageMetrics.offsetY}px, 0) scale(${stageMetrics.scale})`,
+      transformOrigin: 'top left',
+    }),
+    [stageMetrics],
+  );
+
+  const activate = (id: string) => {
+    setActiveId(id);
+    setWindows((current) => bringToFront(current, id));
+  };
+
+  const pointInStage = (clientX: number, clientY: number) => {
+    const desktop = desktopRef.current;
+    if (!desktop) {
+      return null;
+    }
+
     const desktopRect = desktop.getBoundingClientRect();
-    if (!windowModel) {
+    return {
+      x: (clientX - desktopRect.left - desktop.clientLeft - stageMetrics.offsetX) / stageMetrics.scale,
+      y: (clientY - desktopRect.top - desktop.clientTop - stageMetrics.offsetY) / stageMetrics.scale,
+    };
+  };
+
+  const startDrag = (id: string, event: ReactPointerEvent<HTMLElement>) => {
+    if (!event.isPrimary || event.button !== 0) {
       return;
     }
 
+    event.preventDefault();
+    event.stopPropagation();
+    const point = pointInStage(event.clientX, event.clientY);
+    const windowModel = windows.find((item) => item.id === id);
+    if (!point || !windowModel) {
+      return;
+    }
+
+    activate(id);
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragState({
       id,
       pointerId: event.pointerId,
-      offsetX: event.clientX - desktopRect.left - windowModel.x,
-      offsetY: event.clientY - desktopRect.top - windowModel.y,
+      offsetX: point.x - windowModel.x,
+      offsetY: point.y - windowModel.y,
     });
   };
 
-  const moveDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!dragState || !desktopRef.current) {
+  const moveDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) {
       return;
     }
 
-    const desktopRect = desktopRef.current.getBoundingClientRect();
+    const point = pointInStage(event.clientX, event.clientY);
+    if (!point) {
+      return;
+    }
+
     setWindows((current) =>
       current.map((item) => {
         if (item.id !== dragState.id) {
           return item;
         }
 
-        const x = Math.min(
-          Math.max(16, event.clientX - desktopRect.left - dragState.offsetX),
-          desktopRect.width - item.width - 16,
-        );
-        const y = Math.min(
-          Math.max(16, event.clientY - desktopRect.top - dragState.offsetY),
-          desktopRect.height - item.height - 16,
-        );
-
+        const x = clamp(point.x - dragState.offsetX, WINDOW_GUTTER, STAGE_WIDTH - item.width - WINDOW_GUTTER);
+        const y = clamp(point.y - dragState.offsetY, WINDOW_GUTTER, STAGE_HEIGHT - item.height - WINDOW_GUTTER);
         return { ...item, x, y };
       }),
     );
   };
 
-  const endDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const endDrag = (event: ReactPointerEvent<HTMLElement>) => {
     if (dragState && event.pointerId === dragState.pointerId) {
       setDragState(null);
+    }
+  };
+
+  const resetWindows = () => {
+    setWindows(freshWindows());
+    setActiveId('browser');
+    setDragState(null);
+  };
+
+  const beginClearPreview = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!event.isPrimary || event.button !== 0) {
+      return;
+    }
+    event.currentTarget.setPointerCapture(event.pointerId);
+    onPreviewClearedChange(true);
+  };
+
+  const finishClearPreview = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    onPreviewClearedChange(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
     }
   };
 
   return (
     <section
       ref={desktopRef}
-      className="fake-desktop"
+      className={`fake-desktop ${dragState ? 'is-dragging' : ''} ${previewCleared ? 'is-preview-cleared' : ''}`}
+      aria-labelledby="demo-stage-title"
       onPointerMove={moveDrag}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
     >
       <div className="desktop-grid" aria-hidden="true" />
-      <div className="dock" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-        <span />
+
+      <div className="demo-stage" style={stageStyle}>
+        <header className="demo-stage-topbar">
+          <div className="demo-brand" aria-label="Rainpane live preview">
+            <span className="demo-brand-mark" aria-hidden="true"><i /><i /><i /></span>
+            <span>Rainpane</span>
+          </div>
+          <div className="demo-stage-status" aria-live="polite">
+            <i aria-hidden="true" />
+            <span>Live atmosphere</span>
+            <strong>{preset.label}</strong>
+          </div>
+        </header>
+
+        <div className="demo-stage-intro">
+          <p className="demo-stage-kicker">A softer edge around attention</p>
+          <h2 id="demo-stage-title">Let the room <em>fall away.</em></h2>
+          <p className="demo-stage-prompt">The window you need stays clear. Choose one, move it, and watch the rest quietly recede.</p>
+          <button className="reset-windows-button" type="button" onClick={resetWindows}>
+            Reset windows
+          </button>
+        </div>
+
+        <div
+          className="stage-windows"
+          style={{ position: 'absolute', inset: 0, zIndex: 10, isolation: 'isolate', pointerEvents: 'none' }}
+          aria-label="Interactive demo windows"
+        >
+          {windows.map((windowModel) => (
+            <FakeWindow
+              key={windowModel.id}
+              windowModel={windowModel}
+              active={windowModel.id === activeId}
+              onActivate={activate}
+              onDragStart={startDrag}
+            />
+          ))}
+        </div>
       </div>
-      {windows.map((windowModel) => (
-        <FakeWindow
-          key={windowModel.id}
-          windowModel={windowModel}
-          active={windowModel.id === activeId}
-          onActivate={activate}
-          onDragStart={startDrag}
-        />
-      ))}
-      <RainCanvas activeMask={activeMask} settings={settings} />
+
+      <RainCanvas activeMask={activeMask} settings={previewSettings} surface="preview" />
+
+      <div className="focus-shelf" style={{ position: 'absolute', zIndex: 70 }}>
+        <div className="focus-shelf-active">
+          <span>Clear focus pane</span>
+          <strong>{activeWindow?.title ?? 'No active window'}</strong>
+          <small>{activeWindow?.role ?? 'Choose a window to begin'}</small>
+        </div>
+        <button
+          className="hold-to-clear-button"
+          type="button"
+          aria-pressed={previewCleared}
+          onPointerDown={beginClearPreview}
+          onPointerUp={finishClearPreview}
+          onPointerCancel={finishClearPreview}
+          onLostPointerCapture={() => onPreviewClearedChange(false)}
+          onKeyDown={(event) => {
+            if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
+              event.preventDefault();
+              onPreviewClearedChange(true);
+            }
+          }}
+          onKeyUp={(event) => {
+            if (event.key === ' ' || event.key === 'Enter') {
+              event.preventDefault();
+              onPreviewClearedChange(false);
+            }
+          }}
+          onBlur={() => onPreviewClearedChange(false)}
+        >
+          <span aria-hidden="true">{previewCleared ? 'Clear' : 'Hold'}</span>
+          <strong>{previewCleared ? 'The glass is clear' : 'Press and hold to clear'}</strong>
+        </button>
+      </div>
     </section>
   );
 }

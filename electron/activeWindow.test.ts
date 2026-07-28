@@ -71,13 +71,32 @@ describe('active window detection helpers', () => {
     ).toEqual({ x: 0, y: 0, width: 150, height: 90 });
   });
 
-  it('trims CoreGraphics shadow bounds before mapping', () => {
+  it('maps CoreGraphics bounds without a source-specific vertical drift', () => {
     expect(
       mapWindowToDisplayMask(
         { x: 120, y: 80, width: 400, height: 300, source: 'core-graphics' },
         { x: 100, y: 50, width: 1000, height: 800 },
       ),
-    ).toEqual({ x: 20, y: 6, width: 400, height: 300 });
+    ).toEqual({ x: 20, y: 30, width: 400, height: 300 });
+  });
+
+  it('maps identical CoreGraphics and Accessibility bounds to the same mask', () => {
+    const display = { x: 0, y: 0, width: 1440, height: 1121 };
+    const geometry = { x: 0, y: 112, width: 524, height: 895 };
+
+    expect(mapWindowToDisplayMask({ ...geometry, source: 'core-graphics' }, display)).toEqual(
+      mapWindowToDisplayMask({ ...geometry, source: 'accessibility' }, display),
+    );
+  });
+
+  it('preserves the screenshot-signature top and bottom edges', () => {
+    const mask = mapWindowToDisplayMask(
+      { x: 0, y: 112, width: 524, height: 895, source: 'core-graphics' },
+      { x: 0, y: 0, width: 1440, height: 1121 },
+    );
+
+    expect(mask).toEqual({ x: 0, y: 112, width: 524, height: 895 });
+    expect(mask!.y + mask!.height).toBe(1007);
   });
 
   it('maps Windows native coordinates into mixed-DPI display coordinates', () => {

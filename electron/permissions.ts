@@ -23,3 +23,11 @@ export function openAccessibilitySettings() {
 
   void shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
 }
+
+export function openScreenRecordingSettings() {
+  if (process.platform !== 'darwin') {
+    return;
+  }
+
+  void shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
+}

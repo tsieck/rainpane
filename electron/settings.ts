@@ -23,6 +23,7 @@ export interface WeatherSettings {
   fullRainWhileMoving: boolean;
   lockInDimmingEnabled: boolean;
   idleDeepeningEnabled: boolean;
+  photorealRefractionEnabled: boolean;
   displayMode: DisplayMode;
 }
 
@@ -42,12 +43,54 @@ export const DEFAULT_SETTINGS: WeatherSettings = {
   fullRainWhileMoving: true,
   lockInDimmingEnabled: true,
   idleDeepeningEnabled: true,
+  photorealRefractionEnabled: false,
   displayMode: 'primary',
   rainIntensity: 0.38,
   fogIntensity: 0.24,
   dropletDensity: 0.3,
   windAngle: -8,
   animationSpeed: 0.72,
+};
+
+export const MODE_DEFAULTS: Record<
+  WeatherMode,
+  Pick<WeatherSettings, 'rainIntensity' | 'fogIntensity' | 'dropletDensity' | 'windAngle' | 'animationSpeed'>
+> = {
+  'cozy-rain': {
+    rainIntensity: 0.38,
+    fogIntensity: 0.24,
+    dropletDensity: 0.3,
+    windAngle: -8,
+    animationSpeed: 0.72,
+  },
+  'storm-lock-in': {
+    rainIntensity: 0.95,
+    fogIntensity: 0.7,
+    dropletDensity: 0.72,
+    windAngle: -28,
+    animationSpeed: 1.16,
+  },
+  'night-drive': {
+    rainIntensity: 0.8,
+    fogIntensity: 0.42,
+    dropletDensity: 0.54,
+    windAngle: -38,
+    animationSpeed: 1.04,
+  },
+  greyglass: {
+    rainIntensity: 0.26,
+    fogIntensity: 0.58,
+    dropletDensity: 0.38,
+    windAngle: -6,
+    animationSpeed: 0.54,
+  },
+  winterglass: {
+    rainIntensity: 0.12,
+    fogIntensity: 0.52,
+    dropletDensity: 0.24,
+    windAngle: -12,
+    animationSpeed: 0.48,
+  },
 };
 
 const MODES = new Set<WeatherMode>(['cozy-rain', 'storm-lock-in', 'night-drive', 'greyglass', 'winterglass']);
@@ -66,8 +109,11 @@ export function validateSettings(input: unknown, current: WeatherSettings): Weat
   }
 
   const candidate = input as Partial<WeatherSettings>;
+  const mode = candidate.mode && MODES.has(candidate.mode) ? candidate.mode : current.mode;
+  const numericBase = mode === current.mode ? current : { ...current, ...MODE_DEFAULTS[mode] };
+
   return {
-    mode: candidate.mode && MODES.has(candidate.mode) ? candidate.mode : current.mode,
+    mode,
     rainEnabled: typeof candidate.rainEnabled === 'boolean' ? candidate.rainEnabled : current.rainEnabled,
     fogEnabled: typeof candidate.fogEnabled === 'boolean' ? candidate.fogEnabled : current.fogEnabled,
     dropletsEnabled: typeof candidate.dropletsEnabled === 'boolean' ? candidate.dropletsEnabled : current.dropletsEnabled,
@@ -92,12 +138,16 @@ export function validateSettings(input: unknown, current: WeatherSettings): Weat
       typeof candidate.idleDeepeningEnabled === 'boolean'
         ? candidate.idleDeepeningEnabled
         : current.idleDeepeningEnabled,
+    photorealRefractionEnabled:
+      typeof candidate.photorealRefractionEnabled === 'boolean'
+        ? candidate.photorealRefractionEnabled
+        : current.photorealRefractionEnabled,
     displayMode:
       candidate.displayMode && DISPLAY_MODES.has(candidate.displayMode) ? candidate.displayMode : current.displayMode,
-    rainIntensity: clamp(candidate.rainIntensity, 0, 1, current.rainIntensity),
-    fogIntensity: clamp(candidate.fogIntensity, 0, 1, current.fogIntensity),
-    dropletDensity: clamp(candidate.dropletDensity, 0, 1, current.dropletDensity),
-    windAngle: clamp(candidate.windAngle, -75, 75, current.windAngle),
-    animationSpeed: clamp(candidate.animationSpeed, 0.25, 1.5, current.animationSpeed),
+    rainIntensity: clamp(candidate.rainIntensity, 0, 1, numericBase.rainIntensity),
+    fogIntensity: clamp(candidate.fogIntensity, 0, 1, numericBase.fogIntensity),
+    dropletDensity: clamp(candidate.dropletDensity, 0, 1, numericBase.dropletDensity),
+    windAngle: clamp(candidate.windAngle, -75, 75, numericBase.windAngle),
+    animationSpeed: clamp(candidate.animationSpeed, 0.25, 1.5, numericBase.animationSpeed),
   };
 }

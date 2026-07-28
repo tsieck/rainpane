@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { Rect, WeatherSettings, WindowBounds } from './weather/types';
+import type { PhotorealRefractionFrame, PhotorealRefractionStatus, Rect, WeatherSettings, WindowBounds } from './weather/types';
 
 interface ActiveWindowState {
   bounds: WindowBounds | null;
@@ -12,6 +12,11 @@ interface ActiveWindowState {
 interface RuntimeState {
   onBatteryPower: boolean;
   idleDeepeningActive: boolean;
+  overlayEnabled: boolean;
+  prefersReducedTransparency: boolean;
+  shouldUseHighContrastColors: boolean;
+  shouldDifferentiateWithoutColor: boolean;
+  photorealRefractionStatus: PhotorealRefractionStatus;
 }
 
 interface UpdateCheckResult {
@@ -29,6 +34,7 @@ declare global {
     rainpane?: {
       platform: string;
       view: 'overlay' | 'demo';
+      photorealRefractionSupported: boolean;
       getSettings: () => Promise<WeatherSettings>;
       getActiveWindow: () => Promise<ActiveWindowState>;
       getRuntimeState: () => Promise<RuntimeState>;
@@ -36,6 +42,8 @@ declare global {
       updateSettings: (settings: WeatherSettings) => void;
       resetSettings: () => void;
       setOverlayVisible: (visible: boolean) => void;
+      submitPhotorealRefractionFrame: (frame: PhotorealRefractionFrame) => void;
+      openScreenRecordingSettings: () => void;
       onSettingsChanged: (callback: (settings: WeatherSettings) => void) => () => void;
       onActiveWindowChanged: (callback: (state: ActiveWindowState) => void) => () => void;
       onRuntimeChanged: (callback: (state: RuntimeState) => void) => () => void;

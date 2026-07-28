@@ -36,7 +36,7 @@ export function drawFog(
   }
 
   const drift = elapsed * 0.012 * settings.animationSpeed;
-  const layerCount = settings.reducedMotion ? 3 : settings.lowPowerMode ? 5 : 8;
+  const layerCount = settings.renderBudget === 'conservative' ? 1 : settings.reducedMotion ? 2 : settings.lowPowerMode ? 3 : 6;
   for (let i = 0; i < layerCount; i += 1) {
     const x = ((i * 223 + drift * (18 + i * 3)) % (width + 420)) - 210;
     const y = ((i * 97 + Math.sin(drift * 0.08 + i) * 70) % (height + 260)) - 130;

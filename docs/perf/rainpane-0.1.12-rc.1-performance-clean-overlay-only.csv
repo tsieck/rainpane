@@ -1,0 +1,11 @@
+sample,posture,total_cpu_percent
+1,overlay_only,4.0
+2,overlay_only,4.2
+3,overlay_only,5.3
+4,overlay_only,4.3
+5,overlay_only,5.0
+6,overlay_only,4.5
+7,overlay_only,4.3
+8,overlay_only,4.0
+9,overlay_only,4.8
+10,overlay_only,7.2

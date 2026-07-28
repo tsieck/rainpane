@@ -1,27 +1,46 @@
+import { drawOpticalDroplet, getDropletOpticalVariant } from './dropletOptics';
 import type { EdgeRunoffDrop, Rect, WeatherSettings } from './types';
+
+interface EdgeRunoffGeometry {
+  x: number;
+  y: number;
+  alpha: number;
+  trailLength: number;
+  lateralBend: number;
+}
+
+function clamp(value: number, minimum = 0, maximum = 1) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
 
 function makeDrop(settings: WeatherSettings): EdgeRunoffDrop {
   const roll = Math.random();
   return {
-    side: roll < 0.42 ? 'left' : roll < 0.84 ? 'right' : 'top',
+    side: roll < 0.47 ? 'left' : roll < 0.94 ? 'right' : 'top',
     t: Math.random(),
-    offset: 4 + Math.random() * (settings.mode === 'storm-lock-in' ? 15 : 11),
+    offset: 8 + Math.random() * (settings.mode === 'storm-lock-in' ? 18 : 14),
     age: Math.random() * 4,
-    lifetime: 6 + Math.random() * (settings.mode === 'greyglass' ? 18 : 11),
-    speed: 8 + Math.random() * (settings.mode === 'storm-lock-in' ? 26 : 16),
-    radius: 1.6 + Math.random() * (settings.mode === 'greyglass' ? 3.4 : 4.8),
-    opacity: 0.1 + Math.random() * (settings.mode === 'night-drive' ? 0.22 : 0.16),
-    trail: 8 + Math.random() * 28,
+    lifetime: 12 + Math.random() * (settings.mode === 'greyglass' ? 22 : 16),
+    speed: 6 + Math.random() * (settings.mode === 'storm-lock-in' ? 20 : 13),
+    radius: 2.2 + Math.random() * (settings.mode === 'greyglass' ? 3.6 : 5.2),
+    opacity: 0.12 + Math.random() * (settings.mode === 'night-drive' ? 0.2 : 0.14),
+    trail: 10 + Math.random() * 24,
     seed: Math.random() * Math.PI * 2,
   };
 }
 
 export function syncEdgeRunoff(drops: EdgeRunoffDrop[], activeMask: Rect | null, settings: WeatherSettings) {
   const enabled = Boolean(activeMask) && settings.dropletsEnabled && !settings.coverFullScreen && !settings.reducedMotion;
+  const quietScale = settings.mode === 'storm-lock-in' ? 0.78 : settings.mode === 'night-drive' ? 0.66 : 0.48;
   const target = enabled
     ? Math.min(
-        settings.lowPowerMode ? 14 : 26,
-        Math.floor(((activeMask?.width ?? 0) + (activeMask?.height ?? 0)) * settings.dropletDensity * (settings.lowPowerMode ? 0.018 : 0.028)),
+        settings.renderBudget === 'conservative' ? 3 : settings.lowPowerMode ? 5 : 8,
+        Math.floor(
+          ((activeMask?.width ?? 0) + (activeMask?.height ?? 0)) *
+            settings.dropletDensity *
+            quietScale *
+            (settings.lowPowerMode || settings.renderBudget === 'conservative' ? 0.007 : 0.011),
+        ),
       )
     : 0;
 
@@ -33,20 +52,15 @@ export function syncEdgeRunoff(drops: EdgeRunoffDrop[], activeMask: Rect | null,
   }
 }
 
-export function drawEdgeRunoff(
-  ctx: CanvasRenderingContext2D,
+export function updateEdgeRunoff(
   drops: EdgeRunoffDrop[],
   activeMask: Rect | null,
   dt: number,
   settings: WeatherSettings,
-  color: string,
 ) {
   if (!activeMask || drops.length === 0 || !settings.dropletsEnabled || settings.coverFullScreen) {
     return;
   }
-
-  ctx.save();
-  ctx.lineCap = 'round';
 
   for (let index = drops.length - 1; index >= 0; index -= 1) {
     const drop = drops[index];
@@ -56,11 +70,6 @@ export function drawEdgeRunoff(
       drops[index] = makeDrop(settings);
       continue;
     }
-
-    const progress = drop.age / drop.lifetime;
-    const fadeIn = Math.min(1, drop.age / 1.4);
-    const fadeOut = Math.max(0, 1 - progress);
-    const alpha = drop.opacity * settings.dropletDensity * fadeIn * fadeOut;
 
     if (drop.side === 'top') {
       drop.t += (drop.speed * 0.24 * dt * settings.animationSpeed) / Math.max(1, activeMask.width);
@@ -72,48 +81,117 @@ export function drawEdgeRunoff(
       drops[index] = makeDrop(settings);
       continue;
     }
+  }
+}
 
-    const wobble = Math.sin(drop.age * 1.7 + drop.seed) * 1.8;
-    const x =
-      drop.side === 'left'
-        ? activeMask.x - drop.offset + wobble
-        : drop.side === 'right'
-          ? activeMask.x + activeMask.width + drop.offset + wobble
-          : activeMask.x + activeMask.width * drop.t;
-    const y = drop.side === 'top' ? activeMask.y - drop.offset + Math.sin(drop.age + drop.seed) * 1.5 : activeMask.y + activeMask.height * drop.t;
+function getEdgeRunoffGeometry(
+  drop: EdgeRunoffDrop,
+  activeMask: Rect,
+  settings: WeatherSettings,
+): EdgeRunoffGeometry {
+  const progress = clamp(drop.age / drop.lifetime);
+  const fadeIn = Math.min(1, drop.age / 1.4);
+  const fadeOut = Math.max(0, 1 - progress);
+  const modeAlpha = settings.mode === 'storm-lock-in' ? 0.82 : settings.mode === 'night-drive' ? 0.66 : 0.48;
+  const wobble = Math.sin(drop.age * 1.7 + drop.seed) * 1.8;
+  const x =
+    drop.side === 'left'
+      ? activeMask.x - drop.offset + wobble
+      : drop.side === 'right'
+        ? activeMask.x + activeMask.width + drop.offset + wobble
+        : activeMask.x + activeMask.width * drop.t;
+  const y =
+    drop.side === 'top'
+      ? activeMask.y - drop.offset + Math.sin(drop.age + drop.seed) * 1.5
+      : activeMask.y + activeMask.height * drop.t;
 
-    const trailLength = drop.side === 'top' ? drop.trail * 0.35 : drop.trail * (0.45 + progress * 0.55);
-    const gradient =
-      drop.side === 'top'
-        ? ctx.createLinearGradient(x - trailLength, y, x, y)
-        : ctx.createLinearGradient(x, y - trailLength, x, y + drop.radius);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
-    gradient.addColorStop(0.7, color);
-    gradient.addColorStop(1, color);
+  return {
+    x,
+    y,
+    alpha: drop.opacity * settings.dropletDensity * fadeIn * fadeOut * modeAlpha,
+    trailLength: drop.side === 'top' ? drop.trail * 0.42 : drop.trail * (0.5 + progress * 0.36),
+    lateralBend: Math.sin(drop.seed * 1.9 + drop.age * 0.34) * Math.min(3.5, drop.radius * 0.45),
+  };
+}
 
-    ctx.globalAlpha = alpha * 0.62;
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = Math.max(0.55, drop.radius * 0.36);
+export function carveEdgeRunoff(
+  ctx: CanvasRenderingContext2D,
+  drops: readonly EdgeRunoffDrop[],
+  activeMask: Rect | null,
+  settings: WeatherSettings,
+) {
+  if (!activeMask || drops.length === 0 || !settings.dropletsEnabled || settings.coverFullScreen) {
+    return;
+  }
+
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.strokeStyle = '#000';
+  for (const drop of drops) {
+    const geometry = getEdgeRunoffGeometry(drop, activeMask, settings);
+    ctx.globalAlpha = clamp(geometry.alpha * 1.85, 0, 0.42);
+    ctx.lineWidth = Math.max(1.5, drop.radius * 0.72);
     ctx.beginPath();
     if (drop.side === 'top') {
-      ctx.moveTo(x - trailLength, y);
-      ctx.lineTo(x, y);
+      ctx.moveTo(geometry.x - geometry.trailLength, geometry.y);
+      ctx.quadraticCurveTo(
+        geometry.x - geometry.trailLength * 0.48,
+        geometry.y + geometry.lateralBend,
+        geometry.x - drop.radius * 0.52,
+        geometry.y,
+      );
     } else {
-      ctx.moveTo(x, y - trailLength);
-      ctx.lineTo(x, y + drop.radius);
+      ctx.moveTo(geometry.x, geometry.y - geometry.trailLength);
+      ctx.quadraticCurveTo(
+        geometry.x + geometry.lateralBend,
+        geometry.y - geometry.trailLength * 0.46,
+        geometry.x,
+        geometry.y - drop.radius * 0.58,
+      );
     }
     ctx.stroke();
+  }
+  ctx.restore();
+}
 
-    const beadGradient = ctx.createRadialGradient(x - drop.radius * 0.35, y - drop.radius * 0.35, 0, x, y, drop.radius * 1.6);
-    beadGradient.addColorStop(0, `rgba(255, 255, 255, ${alpha * 1.25})`);
-    beadGradient.addColorStop(0.45, `rgba(196, 225, 226, ${alpha * 0.5})`);
-    beadGradient.addColorStop(1, `rgba(12, 22, 24, ${alpha * 0.18})`);
+export function drawEdgeRunoff(
+  ctx: CanvasRenderingContext2D,
+  drops: readonly EdgeRunoffDrop[],
+  activeMask: Rect | null,
+  settings: WeatherSettings,
+) {
+  if (!activeMask || drops.length === 0 || !settings.dropletsEnabled || settings.coverFullScreen) {
+    return;
+  }
 
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = beadGradient;
-    ctx.beginPath();
-    ctx.ellipse(x, y, drop.radius * 0.72, drop.radius * 1.15, -0.05, 0, Math.PI * 2);
-    ctx.fill();
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  for (let index = 0; index < drops.length; index += 1) {
+    const drop = drops[index];
+    const geometry = getEdgeRunoffGeometry(drop, activeMask, settings);
+    const opticalAlpha = clamp(geometry.alpha * 3.7, 0, 0.88);
+    const variant = getDropletOpticalVariant(drop.seed, index + 101);
+
+    if (drop.side === 'top') {
+      ctx.save();
+      ctx.translate(geometry.x, geometry.y);
+      ctx.rotate(-Math.PI / 2);
+      drawOpticalDroplet(ctx, 'pane', variant, 0, 0, drop.radius * 0.82, drop.radius * 1.04, opticalAlpha);
+      ctx.restore();
+    } else {
+      drawOpticalDroplet(
+        ctx,
+        'pane',
+        variant,
+        geometry.x,
+        geometry.y,
+        drop.radius * 0.82,
+        drop.radius * 1.04,
+        opticalAlpha,
+      );
+    }
   }
 
   ctx.restore();

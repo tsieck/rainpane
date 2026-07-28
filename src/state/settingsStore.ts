@@ -134,6 +134,7 @@ export const DEFAULT_SETTINGS: WeatherSettings = {
   fullRainWhileMoving: true,
   lockInDimmingEnabled: true,
   idleDeepeningEnabled: true,
+  photorealRefractionEnabled: false,
   displayMode: 'primary',
   ...MODE_PRESETS['cozy-rain'].settings,
 };

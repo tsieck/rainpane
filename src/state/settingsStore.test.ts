@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { applyIntensity, applyMode, DEFAULT_SETTINGS, INTENSITY_PRESETS, MODE_PRESETS } from './settingsStore';
 
 describe('weather settings', () => {
+  it('keeps capture-backed refraction explicitly opt-in across scene changes', () => {
+    expect(DEFAULT_SETTINGS.photorealRefractionEnabled).toBe(false);
+    expect(
+      applyMode({ ...DEFAULT_SETTINGS, photorealRefractionEnabled: true }, 'night-drive')
+        .photorealRefractionEnabled,
+    ).toBe(true);
+  });
+
   it('has defaults that point to an existing mode', () => {
     expect(MODE_PRESETS[DEFAULT_SETTINGS.mode]).toBeDefined();
   });

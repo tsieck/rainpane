@@ -55,9 +55,9 @@ export function updateRainGust(state: RainGustState, dt: number, settings: Weath
 
 export function syncRainStreaks(streaks: RainStreak[], width: number, height: number, settings: WeatherSettings) {
   const densityBoost = settings.mode === 'storm-lock-in' ? 1.18 : settings.mode === 'winterglass' ? 0.22 : settings.mode === 'greyglass' ? 0.78 : 1;
-  const powerScale = settings.renderBudget === 'conservative' ? 0.38 : settings.lowPowerMode ? 0.62 : 1;
+  const powerScale = settings.renderBudget === 'conservative' ? 0.12 : settings.lowPowerMode ? 0.3 : 0.72;
   const target = settings.rainEnabled ? Math.floor((width * height * settings.rainIntensity * densityBoost * powerScale) / 1450) : 0;
-  const cappedTarget = Math.min(target, settings.reducedMotion ? 260 : settings.renderBudget === 'conservative' ? 320 : settings.lowPowerMode ? 520 : 980);
+  const cappedTarget = Math.min(target, settings.reducedMotion ? 72 : settings.renderBudget === 'conservative' ? 88 : settings.lowPowerMode ? 190 : 620);
 
   while (streaks.length < cappedTarget) {
     streaks.push(makeStreak(width, height));
@@ -87,6 +87,7 @@ export function drawRain(
   const angleDegrees = Math.max(-78, Math.min(78, settings.windAngle + gustAngle));
   const angle = (angleDegrees * Math.PI) / 180;
   const windX = Math.sin(angle) * (settings.mode === 'storm-lock-in' ? 420 : settings.mode === 'winterglass' ? 120 : 320) * (1 + gust.strength);
+  const cheapStrokes = settings.renderBudget === 'conservative' || settings.lowPowerMode;
 
   ctx.save();
   ctx.lineCap = 'round';
@@ -121,19 +122,24 @@ export function drawRain(
 
     const depthAlpha = streak.layer === 'far' ? 0.58 : streak.layer === 'near' ? 1.22 : 0.92;
     const depthWidth = streak.layer === 'far' ? 0.68 : streak.layer === 'near' ? 1.18 : 0.92;
+    const panePriority = settings.dropletsEnabled ? (settings.mode === 'storm-lock-in' ? 0.62 : 0.52) : 1;
     const alpha =
       streak.opacity *
       settings.rainIntensity *
       (settings.mode === 'winterglass' ? 0.34 : settings.mode === 'greyglass' ? 0.62 : 1) *
-      depthAlpha;
-    const gradient = ctx.createLinearGradient(streak.x, streak.y, endX, endY);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
-    gradient.addColorStop(0.22, rainColor);
-    gradient.addColorStop(0.72, rainColor);
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = gradient;
+      depthAlpha *
+      panePriority;
+    ctx.globalAlpha = cheapStrokes ? alpha * 0.68 : alpha;
+    if (cheapStrokes) {
+      ctx.strokeStyle = rainColor;
+    } else {
+      const gradient = ctx.createLinearGradient(streak.x, streak.y, endX, endY);
+      gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+      gradient.addColorStop(0.22, rainColor);
+      gradient.addColorStop(0.72, rainColor);
+      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.strokeStyle = gradient;
+    }
     ctx.lineWidth = Math.max(0.38, streak.thickness * depthWidth * (0.55 + settings.rainIntensity * 0.55));
     ctx.beginPath();
     ctx.moveTo(streak.x, streak.y);
