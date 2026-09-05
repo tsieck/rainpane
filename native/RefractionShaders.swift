@@ -48,7 +48,7 @@ vertex VertexOut dropletVertex(
     DropletInstance droplet = droplets[instanceID];
     // Leave analytic padding around the cap so edge derivatives are never
     // clipped by the instance quad, including on 1–3 px Retina beads.
-    float2 corner = corners[vertexID] * 1.14;
+    float2 corner = corners[vertexID] * 1.28;
     float2 logicalPosition = droplet.center + corner * droplet.radii;
     float2 normalizedPosition = logicalPosition / max(uniforms.viewport, float2(1.0));
 
@@ -182,13 +182,14 @@ fragment float4 dropletFragment(
     float seed = input.optical.w * 6.2831853;
     float shapeAmount = input.appearance.y;
     float boundary = 1.0
-        + sin(angle * 3.0 + seed) * 0.018 * shapeAmount
-        + sin(angle * 5.0 - seed * 1.7) * 0.009 * shapeAmount;
+        + sin(angle * 3.0 + seed) * 0.065 * shapeAmount
+        + sin(angle * 5.0 - seed * 1.7) * 0.025 * shapeAmount;
 
     // A tiny center-of-mass asymmetry keeps beads organic without turning a
     // running bead into a bulb with a filament-like tail.
-    p.x += sin(seed * 2.1) * 0.012 * p.y * p.y * shapeAmount;
-    p.y += cos(seed * 1.3) * 0.008 * p.x * p.x * shapeAmount;
+    p.x += sin(seed * 2.1) * 0.028 * p.y * p.y * shapeAmount;
+    p.x /= 1.0 + p.y * 0.055 * shapeAmount;
+    p.y += cos(seed * 1.3) * 0.018 * p.x * p.x * shapeAmount;
     float radial = length(p) / boundary;
     float edgeWidth = clamp(fwidth(radial) * 0.65, 0.002, 0.42);
     float edgeCoverage = 1.0 - smoothstep(1.0 - edgeWidth, 1.0 + edgeWidth, radial);
@@ -210,7 +211,7 @@ fragment float4 dropletFragment(
     float2 raySlope = ray.xy / max(-ray.z, 0.28);
 
     float minimumRadius = min(input.radii.x, input.radii.y);
-    float refractionPixels = clamp(minimumRadius * 0.16 * input.optical.y, 0.0, 18.0);
+    float refractionPixels = clamp(minimumRadius * 0.72 * input.optical.y, 0.0, 18.0);
     float2 refractedUV = input.screenUV + raySlope * refractionPixels / max(uniforms.viewport, float2(1.0));
     float2 logicalPerCapturePixel = uniforms.viewport / max(uniforms.captureSize, float2(1.0));
     float sampleProtectionPadding = max(0.5, max(logicalPerCapturePixel.x, logicalPerCapturePixel.y) * 0.75);
@@ -259,8 +260,19 @@ fragment float4 dropletFragment(
     float3 lightDirection = normalize(float3(-0.58, -0.66, 0.48));
     float specular = pow(max(dot(normal, lightDirection), 0.0), 72.0);
     float shoulder = pow(max(dot(normal, normalize(float3(0.52, 0.38, 0.76))), 0.0), 18.0);
-    color += float3(1.0, 0.985, 0.95) * specular * 0.42 * input.appearance.x;
+    color += float3(1.0, 0.985, 0.95) * specular * 0.24 * input.appearance.x;
     color += float3(0.72, 0.84, 0.94) * shoulder * 0.055 * input.appearance.x;
+
+    // Broad window illumination forms an inverted lower crescent. The dark
+    // upper shoulder and an irregular contact line keep the lens readable
+    // over both bright documents and a dark desktop without a solid fill.
+    float upperShoulder = smoothstep(0.38, 0.78, radial)
+        * (1.0 - smoothstep(0.93, 1.0, radial))
+        * smoothstep(-0.04, 0.55, -p.y);
+    float lowerCrescent = exp(-pow((radial - 0.77) / 0.13, 2.0))
+        * smoothstep(0.12, 0.65, p.y) * (0.84 + sin(seed) * 0.12);
+    color *= 1.0 - upperShoulder * 0.42;
+    color += float3(0.72, 0.82, 0.84) * lowerCrescent * 0.38 * input.appearance.x;
 
     float opticalDepth = smoothstep(0.02, 0.34, capZ);
     float alpha = input.optical.x * edgeCoverage * mix(0.80, 1.0, opticalDepth);

@@ -61,14 +61,14 @@ const LIGHT_Y = -0.69;
 
 function qualityFor(settings: WeatherSettings): TrailQuality {
   if (settings.renderBudget === 'conservative') {
-    return { scale: 0.28, decayHz: 4, halfLife: 16, shoulderHalfLife: 8, clarity: 0.12, sheen: 0.05 };
+    return { scale: 0.28, decayHz: 4, halfLife: 26, shoulderHalfLife: 16, clarity: 0.48, sheen: 0.18 };
   }
 
   if (settings.lowPowerMode) {
-    return { scale: 0.31, decayHz: 6, halfLife: 12, shoulderHalfLife: 6.5, clarity: 0.14, sheen: 0.058 };
+    return { scale: 0.31, decayHz: 6, halfLife: 23, shoulderHalfLife: 14, clarity: 0.56, sheen: 0.2 };
   }
 
-  return { scale: 0.34, decayHz: 8, halfLife: 9, shoulderHalfLife: 5.5, clarity: 0.17, sheen: 0.066 };
+  return { scale: 0.34, decayHz: 8, halfLife: 20, shoulderHalfLife: 12, clarity: 0.64, sheen: 0.22 };
 }
 
 export function getFreshTrailDetailProfile(settings: WeatherSettings): FreshTrailDetailProfile {
@@ -101,8 +101,10 @@ export class WetGlassTrailField {
   private pendingDecay = 0;
   private trailCursors = new Map<number, TrailCursor>();
   private freshShoulders: FreshTrailShoulder[] = [];
+  private settled = false;
 
   reset() {
+    this.settled = false;
     this.pendingDecay = 0;
     this.trailCursors.clear();
     this.freshShoulders.length = 0;
@@ -192,6 +194,34 @@ export class WetGlassTrailField {
       trailCtx.globalCompositeOperation = 'source-over';
       shoulderCtx.globalCompositeOperation = 'source-over';
 
+      if (!this.settled) {
+        // Begin with a little history: a rainy pane already has a few drained
+        // channels. These use the same expiring maps as all subsequent wakes.
+        let count = 0;
+        for (const drop of droplets) {
+          if (drop.state !== 'running' || drop.y < 36 || count >= 10) continue;
+          const length = Math.min(drop.y - 2, 90 + drop.seed * 34);
+          const bend = Math.sin(drop.seed * 1.7) * 11;
+          const width = Math.max(2.4, Math.min(6, drop.radiusX * 0.64));
+          for (const [target, offset, alpha, lineWidth, color] of [
+            [trailCtx, 0, 0.65, width, '#061015'],
+            [shoulderCtx, -width * 0.38, 0.32, 0.9, '#d7e8e9'],
+          ] as const) {
+            target.lineCap = 'round';
+            target.globalAlpha = alpha;
+            target.strokeStyle = color;
+            target.lineWidth = lineWidth;
+            target.beginPath();
+            target.moveTo(drop.x - bend * 0.5 + offset, drop.y - length);
+            target.bezierCurveTo(drop.x + bend + offset, drop.y - length * 0.66,
+              drop.x - bend + offset, drop.y - length * 0.28, drop.x + offset, drop.y);
+            target.stroke();
+          }
+          count++;
+        }
+        this.settled = true;
+      }
+
       const stampBudget: TrailStampBudget = {
         coverageRemaining: MAX_COVERAGE_STAMPS_PER_FRAME,
         sheenRemaining: MAX_SHEEN_STAMPS_PER_FRAME,
@@ -225,12 +255,12 @@ export class WetGlassTrailField {
 
       if (coverageStampCount > 0) {
         trailCtx.globalAlpha = 1;
-        trailCtx.fillStyle = 'rgba(3, 11, 13, 0.3)';
+        trailCtx.fillStyle = 'rgba(3, 11, 13, 0.76)';
         trailCtx.fill();
       }
       if (shoulderStampCount > 0) {
         shoulderCtx.globalAlpha = 1;
-        shoulderCtx.fillStyle = 'rgba(4, 15, 17, 0.58)';
+        shoulderCtx.fillStyle = 'rgba(213, 234, 236, 0.58)';
         shoulderCtx.fill();
       }
 
@@ -277,11 +307,11 @@ export class WetGlassTrailField {
     ctx.save();
     try {
       ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = quality.sheen * densityScale * 0.48;
+      ctx.globalAlpha = quality.sheen * densityScale * 0.84;
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = settings.renderBudget === 'conservative' ? 'low' : 'medium';
-      // Persist only the soft, dark meniscus in the bounded trail map. Its
-      // newest light-facing fragments are redrawn crisply by drawDetailSheen.
+      // Retain a faint light-facing meniscus along older drained channels.
+      // Only its newest fragments need the full-resolution detail pass.
       ctx.drawImage(
         this.shoulderCanvas,
         0,
@@ -362,7 +392,7 @@ export class WetGlassTrailField {
     ctx.save();
     try {
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.globalAlpha = settings.renderBudget === 'conservative' ? 0.42 : settings.lowPowerMode ? 0.48 : 0.56;
+      ctx.globalAlpha = settings.renderBudget === 'conservative' ? 0.72 : settings.lowPowerMode ? 0.8 : 0.88;
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = settings.renderBudget === 'conservative' ? 'low' : 'medium';
       ctx.drawImage(this.canvas!, 0, 0, this.canvas!.width, this.canvas!.height, 0, 0, width, height);

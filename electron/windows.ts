@@ -47,6 +47,10 @@ export function createOverlayWindow(display: Display = screen.getPrimaryDisplay(
     height,
     transparent: true,
     frame: false,
+    // On macOS the default frame constraint pushes y=0 below the menu bar,
+    // even for a frameless overlay. Keep its origin aligned with the display
+    // coordinates used by both the focus mask and the native refraction pane.
+    enableLargerThanScreen: true,
     resizable: false,
     movable: false,
     minimizable: false,

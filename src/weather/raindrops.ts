@@ -6,6 +6,33 @@ export interface RainGustState {
   direction: number;
 }
 
+const rainSprites = new Map<string, HTMLCanvasElement>();
+
+function getRainSprite(color: string) {
+  const cached = rainSprites.get(color);
+  if (cached) return cached;
+  const canvas = document.createElement('canvas');
+  canvas.width = 8;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const gradient = ctx.createLinearGradient(0, 0, 0, 128);
+  gradient.addColorStop(0, 'transparent');
+  gradient.addColorStop(0.22, color);
+  gradient.addColorStop(0.72, color);
+  gradient.addColorStop(1, 'transparent');
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.moveTo(3.7, 0);
+  ctx.bezierCurveTo(3.2, 44, 0.8, 94, 4, 128);
+  ctx.bezierCurveTo(7.2, 94, 4.8, 44, 4.3, 0);
+  ctx.fill();
+  // The five built-in palettes fit; bound the cache for future custom colors.
+  if (rainSprites.size >= 8) rainSprites.delete(rainSprites.keys().next().value!);
+  rainSprites.set(color, canvas);
+  return canvas;
+}
+
 function chooseLayer(): RainStreak['layer'] {
   const roll = Math.random();
   if (roll < 0.48) {
@@ -91,6 +118,7 @@ export function drawRain(
 
   ctx.save();
   ctx.lineCap = 'round';
+  const sprite = !cheapStrokes ? getRainSprite(rainColor) : null;
 
   for (const streak of streaks) {
     const layerSpeed = streak.layer === 'far' ? 0.62 : streak.layer === 'near' ? 1.2 : 1;
@@ -122,7 +150,7 @@ export function drawRain(
 
     const depthAlpha = streak.layer === 'far' ? 0.58 : streak.layer === 'near' ? 1.22 : 0.92;
     const depthWidth = streak.layer === 'far' ? 0.68 : streak.layer === 'near' ? 1.18 : 0.92;
-    const panePriority = settings.dropletsEnabled ? (settings.mode === 'storm-lock-in' ? 0.62 : 0.52) : 1;
+    const panePriority = settings.dropletsEnabled ? (settings.mode === 'storm-lock-in' ? 0.48 : 0.32) : 1;
     const alpha =
       streak.opacity *
       settings.rainIntensity *
@@ -130,33 +158,34 @@ export function drawRain(
       depthAlpha *
       panePriority;
     ctx.globalAlpha = cheapStrokes ? alpha * 0.68 : alpha;
-    if (cheapStrokes) {
+    const thickness = Math.max(0.38, streak.thickness * depthWidth * (0.55 + settings.rainIntensity * 0.55));
+    if (sprite) {
+      ctx.save();
+      ctx.translate(streak.x, streak.y);
+      ctx.transform(unitY, -unitX, unitX, unitY, 0, 0);
+      if (streak.broken && streak.layer !== 'far') {
+        const start = 0.42 + Math.sin(streak.seed) * 0.12;
+        const end = Math.min(0.82, start + 0.16);
+        ctx.drawImage(sprite, 0, 0, 8, 128 * start, -thickness / 2, 0, thickness, length * start);
+        ctx.drawImage(sprite, 0, 128 * end, 8, 128 * (1 - end), -thickness / 2, length * end, thickness, length * (1 - end));
+      } else {
+        ctx.drawImage(sprite, -thickness / 2, 0, thickness, length);
+      }
+      ctx.restore();
+    } else {
       ctx.strokeStyle = rainColor;
-    } else {
-      const gradient = ctx.createLinearGradient(streak.x, streak.y, endX, endY);
-      gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
-      gradient.addColorStop(0.22, rainColor);
-      gradient.addColorStop(0.72, rainColor);
-      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      ctx.strokeStyle = gradient;
-    }
-    ctx.lineWidth = Math.max(0.38, streak.thickness * depthWidth * (0.55 + settings.rainIntensity * 0.55));
-    ctx.beginPath();
-    ctx.moveTo(streak.x, streak.y);
-    if (streak.broken && streak.layer !== 'far') {
-      const breakStart = 0.42 + Math.sin(streak.seed) * 0.12;
-      const breakEnd = Math.min(0.82, breakStart + 0.16);
-      const midAX = streak.x + (endX - streak.x) * breakStart;
-      const midAY = streak.y + (endY - streak.y) * breakStart;
-      const midBX = streak.x + (endX - streak.x) * breakEnd;
-      const midBY = streak.y + (endY - streak.y) * breakEnd;
-      ctx.lineTo(midAX, midAY);
-      ctx.moveTo(midBX, midBY);
+      ctx.lineWidth = thickness;
+      ctx.beginPath();
+      ctx.moveTo(streak.x, streak.y);
+      if (streak.broken && streak.layer !== 'far') {
+        const start = 0.42 + Math.sin(streak.seed) * 0.12;
+        const end = Math.min(0.82, start + 0.16);
+        ctx.lineTo(streak.x + unitX * length * start, streak.y + unitY * length * start);
+        ctx.moveTo(streak.x + unitX * length * end, streak.y + unitY * length * end);
+      }
       ctx.lineTo(endX, endY);
-    } else {
-      ctx.lineTo(endX, endY);
+      ctx.stroke();
     }
-    ctx.stroke();
 
     if (streak.layer === 'near' && !settings.lowPowerMode && alpha > 0.1) {
       ctx.globalAlpha = alpha * 0.26;

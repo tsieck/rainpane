@@ -1,4 +1,4 @@
-import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 
 export type FakeWindowKind = 'browser' | 'music' | 'notes';
 
@@ -111,13 +111,13 @@ export function FakeWindow({ windowModel, active, onActivate, onDragStart }: Fak
     <article
       className={`fake-window fake-window--${windowModel.kind} ${active ? 'is-active' : 'is-inactive'}`}
       style={{
-        left: windowModel.x,
-        top: windowModel.y,
+        '--window-x': `${windowModel.x}px`,
+        '--window-y': `${windowModel.y}px`,
         width: windowModel.width,
         height: windowModel.height,
         zIndex: windowModel.z,
         pointerEvents: 'auto',
-      }}
+      } as CSSProperties}
       role="button"
       tabIndex={0}
       aria-label={`${windowModel.title} window. ${windowModel.role}`}

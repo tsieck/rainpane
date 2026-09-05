@@ -289,8 +289,12 @@ export function App() {
       <main className="overlay-shell" style={appStyle}>
         <RainCanvas
           activeMask={effectiveMask}
+          focusKey={activeWindowState.bounds
+            ? activeWindowState.bounds.windowId ?? `${activeWindowState.bounds.processName ?? ''}:${activeWindowState.bounds.title ?? ''}`
+            : null}
           settings={overlaySettings}
           surface="overlay"
+          paused={!runtimeState.overlayEnabled}
           photorealRefractionStatus={runtimeState.photorealRefractionStatus}
         />
         {settings.debugMode ? <DebugMask state={activeWindowState} /> : null}

@@ -31,8 +31,9 @@ export const OPTICAL_SPRITE_METRICS: Record<OpticalDropletShape, OpticalSpriteMe
   runner: { canvasWidth: 64, canvasHeight: 80, centerX: 32, centerY: 43, bodyRadiusX: 20, bodyRadiusY: 27 },
 };
 
-const SPRITE_PIXEL_SCALE = 4;
-const TAU = Math.PI * 2;
+// Two pixels per logical sprite unit still exceed the largest rendered heads
+// at Retina scale. Avoid synthesizing four times as many unused texels at startup.
+const SPRITE_PIXEL_SCALE = 2;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const LIGHT_HALF_X = -0.251;
 const LIGHT_HALF_Y = -0.311;
@@ -101,8 +102,15 @@ export function sampleDropletOptics(
   const localX = normalizedX - spineBend;
   const localY = normalizedY + Math.cos(phase * 0.73) * (shape === 'runner' ? 0.014 : 0.008);
   const capRadius = shape === 'runner' ? 1.07 : shape === 'pane' ? 1.025 : 1;
-  const capX = localX / capRadius;
-  const capY = localY / capRadius;
+  const angle = Math.atan2(localY, localX);
+  const irregularity = shape === 'micro' ? 0.035 : shape === 'runner' ? 0.095 : 0.075;
+  const boundary = capRadius * (1
+    + Math.sin(angle * 3 + phase) * irregularity
+    + Math.sin(angle * 5 - phase * 1.7) * irregularity * 0.38);
+  // Surface tension leaves a flattened shoulder and a heavier lower lobe.
+  const shoulder = 1 + localY * (shape === 'runner' ? 0.12 : 0.045);
+  const capX = localX / (boundary * shoulder);
+  const capY = localY / boundary;
   const radiusSquared = capX * capX + capY * capY;
 
   if (radiusSquared >= 1) {
@@ -136,15 +144,21 @@ export function sampleDropletOptics(
   const contactBand = smoothstep(0.72, 0.94, radius) * (1 - smoothstep(0.975, 1, radius));
   const brokenEdge = 0.76 + Math.sin(phase + Math.atan2(capY, capX) * 3) * 0.18;
   const reflection = fresnel * (0.3 + contactBand * 0.7) * brokenEdge;
-  const brightEnergy =
-    tightSpecular * 0.94 +
-    broadSpecular * 0.1 +
-    reflection * upperLeft * (0.18 + roomLight * 0.72);
-  const darkEnergy =
-    contactBand * lowerRight * (0.16 + (1 - roomLight) * 0.42) +
-    reflection * lowerRight * 0.2;
+  // A window is a broad source: its inverted image makes a lower crescent,
+  // while the upper shoulder reflects the dark room. Avoid a bead-wide ring.
+  const lowerCrescent = Math.exp(-Math.pow((radius - 0.77) / 0.13, 2))
+    * smoothstep(0.12, 0.65, capY) * (0.84 + Math.sin(phase) * 0.12);
+  const upperShoulder = smoothstep(0.38, 0.78, radius)
+    * (1 - smoothstep(0.93, 1, radius)) * smoothstep(-0.04, 0.55, -capY);
+  const brightEnergy = tightSpecular * 0.42 + broadSpecular * 0.025
+    + lowerCrescent * 0.94
+    + reflection * upperLeft * (0.12 + roomLight * 0.32);
+  const darkEnergy = upperShoulder * 0.78
+    + contactBand * (0.16 + lowerRight * 0.2)
+    + reflection * lowerRight * 0.16;
   const transmittedAlpha = (shape === 'micro' ? 0.006 : 0.004) * (0.45 + (1 - height) * 0.55);
-  const alpha = clamp(transmittedAlpha + brightEnergy * 0.76 + darkEnergy * 0.58, 0, 0.92);
+  const edgeCoverage = 1 - smoothstep(0.976, 1, radius);
+  const alpha = clamp((transmittedAlpha + brightEnergy * 0.9 + darkEnergy * 0.76) * edgeCoverage, 0, 0.92);
   const energyTotal = brightEnergy + darkEnergy;
   const brightMix = energyTotal > 1e-5 ? brightEnergy / energyTotal : 0.5;
   const coolLift = roomLight * 12;
@@ -165,54 +179,6 @@ export function sampleDropletOptics(
     normalZ,
     fresnel,
   };
-}
-
-function traceDropletBody(
-  ctx: CanvasRenderingContext2D,
-  shape: OpticalDropletShape,
-  metrics: OpticalSpriteMetrics,
-) {
-  const { centerX, centerY, bodyRadiusX: radiusX, bodyRadiusY: radiusY } = metrics;
-  ctx.beginPath();
-  if (shape === 'runner') {
-    ctx.moveTo(centerX - radiusX * 0.38, centerY - radiusY * 0.68);
-    ctx.bezierCurveTo(
-      centerX - radiusX * 0.22,
-      centerY - radiusY * 0.9,
-      centerX + radiusX * 0.2,
-      centerY - radiusY * 0.88,
-      centerX + radiusX * 0.46,
-      centerY - radiusY * 0.62,
-    );
-    ctx.bezierCurveTo(
-      centerX + radiusX * 1.02,
-      centerY - radiusY * 0.12,
-      centerX + radiusX * 0.88,
-      centerY + radiusY * 0.66,
-      centerX + radiusX * 0.18,
-      centerY + radiusY,
-    );
-    ctx.bezierCurveTo(
-      centerX - radiusX * 0.58,
-      centerY + radiusY * 0.96,
-      centerX - radiusX * 1.02,
-      centerY + radiusY * 0.34,
-      centerX - radiusX * 0.9,
-      centerY - radiusY * 0.14,
-    );
-    ctx.bezierCurveTo(
-      centerX - radiusX * 0.78,
-      centerY - radiusY * 0.46,
-      centerX - radiusX * 0.58,
-      centerY - radiusY * 0.62,
-      centerX - radiusX * 0.38,
-      centerY - radiusY * 0.68,
-    );
-    ctx.closePath();
-    return;
-  }
-
-  ctx.ellipse(centerX, centerY, radiusX, radiusY, -0.05, 0, TAU);
 }
 
 function createOpticalSprite(shape: OpticalDropletShape, opticalVariant: number) {
@@ -246,13 +212,8 @@ function createOpticalSprite(shape: OpticalDropletShape, opticalVariant: number)
   }
   ctx.putImageData(pixels, 0, 0);
 
-  ctx.save();
-  ctx.setTransform(SPRITE_PIXEL_SCALE, 0, 0, SPRITE_PIXEL_SCALE, 0, 0);
-  ctx.globalCompositeOperation = 'destination-in';
-  ctx.fillStyle = '#fff';
-  traceDropletBody(ctx, shape, metrics);
-  ctx.fill();
-  ctx.restore();
+  // The optical sample owns the silhouette; an ellipse clip would remove
+  // the individual lobes that distinguish an adhered drop from a bubble.
   return canvas;
 }
 

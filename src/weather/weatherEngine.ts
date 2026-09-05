@@ -45,7 +45,6 @@ export class WeatherEngine {
 
   private syncAccumulationState(settings: WeatherSettings) {
     const nextKey = [
-      settings.mode,
       settings.fogEnabled,
       settings.fogAccumulationEnabled,
       settings.reducedMotion,
@@ -91,7 +90,7 @@ export class WeatherEngine {
 
     withInactiveClip(ctx, width, height, focusQuietMask, () => {
       const fogSettings = settings.fogAccumulationEnabled
-        ? { ...settings, fogIntensity: settings.fogIntensity * 0.36 }
+        ? { ...settings, fogIntensity: settings.fogIntensity * 0.65 }
         : settings;
       drawFog(
         ctx,

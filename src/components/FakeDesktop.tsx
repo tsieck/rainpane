@@ -6,7 +6,7 @@ import type { Rect, WeatherSettings } from '../weather/types';
 import { FakeWindow, type FakeWindowModel } from './FakeWindow';
 
 const STAGE_WIDTH = 1000;
-const STAGE_HEIGHT = 760;
+const STAGE_HEIGHT = 500;
 const WINDOW_GUTTER = 20;
 
 const INITIAL_WINDOWS: FakeWindowModel[] = [
@@ -15,10 +15,10 @@ const INITIAL_WINDOWS: FakeWindowModel[] = [
     kind: 'browser',
     title: 'Research',
     role: 'Browser · Field notes',
-    x: 64,
-    y: 292,
-    width: 520,
-    height: 326,
+    x: 48,
+    y: 32,
+    width: 600,
+    height: 370,
     z: 3,
   },
   {
@@ -26,8 +26,8 @@ const INITIAL_WINDOWS: FakeWindowModel[] = [
     kind: 'music',
     title: 'Music',
     role: 'Now playing',
-    x: 634,
-    y: 308,
+    x: 692,
+    y: 38,
     width: 300,
     height: 270,
     z: 2,
@@ -37,8 +37,8 @@ const INITIAL_WINDOWS: FakeWindowModel[] = [
     kind: 'notes',
     title: 'Notes',
     role: 'A thought worth keeping',
-    x: 326,
-    y: 522,
+    x: 474,
+    y: 294,
     width: 420,
     height: 190,
     z: 1,
@@ -107,7 +107,7 @@ function clamp(value: number, minimum: number, maximum: number) {
 }
 
 export function FakeDesktop({ settings, previewCleared, onPreviewClearedChange }: FakeDesktopProps) {
-  const desktopRef = useRef<HTMLElement | null>(null);
+  const desktopRef = useRef<HTMLDivElement | null>(null);
   const [windows, setWindows] = useState(freshWindows);
   const [activeId, setActiveId] = useState('browser');
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -121,9 +121,7 @@ export function FakeDesktop({ settings, previewCleared, onPreviewClearedChange }
     }
 
     const measure = () => {
-      const styles = window.getComputedStyle(desktop);
-      const reservedPanelWidth = Number.parseFloat(styles.getPropertyValue('--control-panel-reserve')) || 0;
-      const width = Math.max(1, desktop.clientWidth - reservedPanelWidth);
+      const width = Math.max(1, desktop.clientWidth);
       const height = desktop.clientHeight;
       if (width > 0 && height > 0) {
         setStageMetrics(calculateStageMetrics(width, height));
@@ -154,10 +152,6 @@ export function FakeDesktop({ settings, previewCleared, onPreviewClearedChange }
       return null;
     }
 
-    if (previewCleared) {
-      return { x: 0, y: 0, width: stageMetrics.width, height: stageMetrics.height };
-    }
-
     if (!activeWindow) {
       return null;
     }
@@ -168,7 +162,7 @@ export function FakeDesktop({ settings, previewCleared, onPreviewClearedChange }
       width: activeWindow.width * stageMetrics.scale,
       height: activeWindow.height * stageMetrics.scale,
     };
-  }, [activeWindow, dragState, previewCleared, settings.coverFullScreen, settings.fullRainWhileMoving, stageMetrics]);
+  }, [activeWindow, dragState, settings.coverFullScreen, settings.fullRainWhileMoving, stageMetrics]);
 
   const stageStyle = useMemo<CSSProperties>(
     () => ({
@@ -277,55 +271,55 @@ export function FakeDesktop({ settings, previewCleared, onPreviewClearedChange }
 
   return (
     <section
-      ref={desktopRef}
       className={`fake-desktop ${dragState ? 'is-dragging' : ''} ${previewCleared ? 'is-preview-cleared' : ''}`}
       aria-labelledby="demo-stage-title"
       onPointerMove={moveDrag}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
     >
-      <div className="desktop-grid" aria-hidden="true" />
-
-      <div className="demo-stage" style={stageStyle}>
-        <header className="demo-stage-topbar">
-          <div className="demo-brand" aria-label="Rainpane live preview">
-            <span className="demo-brand-mark" aria-hidden="true"><i /><i /><i /></span>
-            <span>Rainpane</span>
-          </div>
-          <div className="demo-stage-status" aria-live="polite">
-            <i aria-hidden="true" />
-            <span>Live atmosphere</span>
-            <strong>{preset.label}</strong>
-          </div>
-        </header>
-
-        <div className="demo-stage-intro">
-          <p className="demo-stage-kicker">A softer edge around attention</p>
-          <h2 id="demo-stage-title">Let the room <em>fall away.</em></h2>
-          <p className="demo-stage-prompt">The window you need stays clear. Choose one, move it, and watch the rest quietly recede.</p>
-          <button className="reset-windows-button" type="button" onClick={resetWindows}>
-            Reset windows
-          </button>
+      <header className="demo-stage-topbar">
+        <div className="demo-brand" aria-label="Rainpane live preview">
+          <span className="demo-brand-mark" aria-hidden="true"><i /><i /><i /></span>
+          <span>Rainpane</span>
         </div>
-
-        <div
-          className="stage-windows"
-          style={{ position: 'absolute', inset: 0, zIndex: 10, isolation: 'isolate', pointerEvents: 'none' }}
-          aria-label="Interactive demo windows"
-        >
-          {windows.map((windowModel) => (
-            <FakeWindow
-              key={windowModel.id}
-              windowModel={windowModel}
-              active={windowModel.id === activeId}
-              onActivate={activate}
-              onDragStart={startDrag}
-            />
-          ))}
+        <div className="demo-stage-status" aria-live="polite">
+          <i aria-hidden="true" />
+          <span>{previewCleared ? 'Clear preview' : 'Live preview'}</span>
+          <strong>{preset.label}</strong>
         </div>
+      </header>
+
+      <div className="demo-stage-intro">
+        <p className="demo-stage-kicker">A little weather. A little space.</p>
+        <h2 id="demo-stage-title">Find your <em>quiet.</em></h2>
+        <p className="demo-stage-prompt">Keep your work in the clear. Let everything else settle into rain.</p>
       </div>
 
-      <RainCanvas activeMask={activeMask} settings={previewSettings} surface="preview" />
+      <div ref={desktopRef} className="demo-workspace">
+        <div className="demo-stage" style={stageStyle}>
+          <div
+            className="stage-windows"
+            style={{ position: 'absolute', inset: 0, zIndex: 10, isolation: 'isolate', pointerEvents: 'none' }}
+            aria-label="Interactive demo windows"
+          >
+            {windows.map((windowModel) => (
+              <FakeWindow
+                key={windowModel.id}
+                windowModel={windowModel}
+                active={windowModel.id === activeId}
+                onActivate={activate}
+                onDragStart={startDrag}
+              />
+            ))}
+          </div>
+        </div>
+
+        <RainCanvas activeMask={activeMask} focusKey={activeId} settings={previewSettings} surface="preview" paused={previewCleared} />
+      </div>
+      <div className="demo-workspace-caption">
+        <span>Click a window to focus · Drag to rearrange</span>
+        <button className="reset-windows-button" type="button" onClick={resetWindows}>Reset windows</button>
+      </div>
 
       <div className="focus-shelf" style={{ position: 'absolute', zIndex: 70 }}>
         <div className="focus-shelf-active">

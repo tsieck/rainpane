@@ -53,10 +53,10 @@ function randomBetween(min: number, max: number, rng: RandomSource) {
 
 function chooseKind(rng: RandomSource): DropletKind {
   const roll = unitRandom(rng);
-  if (roll < 0.86) {
+  if (roll < 0.57) {
     return 'micro';
   }
-  if (roll < 0.97) {
+  if (roll < 0.955) {
     return 'bead';
   }
   return 'pane';
@@ -69,8 +69,8 @@ function makeDimensions(kind: DropletKind, rng: RandomSource) {
   }
 
   if (kind === 'bead') {
-    const radiusX = 2.4 + Math.pow(unitRandom(rng), 1.8) * 4.9;
-    return { radiusX, radiusY: radiusX * randomBetween(0.92, 1.58, rng) };
+    const radiusX = 2.1 + Math.pow(unitRandom(rng), 1.65) * 4.8;
+    return { radiusX, radiusY: radiusX * randomBetween(0.78, 1.38, rng) };
   }
 
   const radiusX = 6 + Math.pow(unitRandom(rng), 1.45) * 5.2;
@@ -452,11 +452,11 @@ function advanceDropletStep(
       promoteToRunner(droplet, rng);
     }
   } else {
-    const terminalSpeed = (18 + radius * 7.5 + settings.rainIntensity * 58) * settings.animationSpeed;
+    const terminalSpeed = (9 + radius * 3.6 + settings.rainIntensity * 27) * settings.animationSpeed;
     const windRadians = (settings.windAngle * Math.PI) / 180;
-    const surfaceBias = Math.sin(droplet.seed * 1.73 + droplet.age * 0.27) * (2.2 + radius * 0.5);
-    const smallWander = Math.sin(droplet.seed * 4.11 + droplet.age * 1.08) * (0.8 + radius * 0.14);
-    const targetVelocityX = Math.sin(windRadians) * terminalSpeed * 0.2 + surfaceBias + smallWander;
+    const surfaceBias = Math.sin(droplet.seed * 1.73 + droplet.age * 0.27) * (2.2 + radius * 0.36);
+    const smallWander = Math.sin(droplet.seed * 4.11 + droplet.age * 0.58) * (0.8 + radius * 0.14);
+    const targetVelocityX = Math.sin(windRadians) * terminalSpeed * 0.07 + surfaceBias + smallWander;
     const response = 1 - Math.exp(-step * 4.8);
     droplet.velocityY += (terminalSpeed - droplet.velocityY) * response;
     droplet.velocityX += (targetVelocityX - droplet.velocityX) * response * 0.76;

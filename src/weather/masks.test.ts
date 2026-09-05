@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  coversViewport,
   createFocusQuietMask,
   ellipseIntersectsRect,
   expandRect,
@@ -70,5 +71,15 @@ describe('mask geometry', () => {
   it('rounds a window-sized focus mask but not a full-canvas clear state', () => {
     expect(getFocusMaskCornerRadius({ x: 60, y: 100, width: 460, height: 900 }, 566, 1121)).toBe(12);
     expect(getFocusMaskCornerRadius({ x: 0, y: 0, width: 566, height: 1121 }, 566, 1121)).toBe(0);
+  });
+});
+
+describe('full viewport protection', () => {
+  it('suspends only when the entire visible viewport is protected', () => {
+    expect(coversViewport({ x: 0, y: 0, width: 800, height: 600 }, 800, 600)).toBe(true);
+    expect(coversViewport({ x: -100, y: -50, width: 1000, height: 800 }, 800, 600)).toBe(true);
+    expect(coversViewport({ x: 1, y: 0, width: 800, height: 600 }, 800, 600)).toBe(false);
+    expect(coversViewport(null, 800, 600)).toBe(false);
+    expect(coversViewport({ x: 0, y: 0, width: 0, height: 0 }, 0, 0)).toBe(false);
   });
 });

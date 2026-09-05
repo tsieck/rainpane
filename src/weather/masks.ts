@@ -64,13 +64,16 @@ export function ellipseIntersectsRect(
   return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
 }
 
-export function getFocusMaskCornerRadius(mask: Rect, width: number, height: number) {
-  const coversCanvas =
+export function coversViewport(mask: Rect | null, width: number, height: number) {
+  return Boolean(mask && width > 0 && height > 0 &&
     mask.x <= 0 &&
     mask.y <= 0 &&
     mask.x + mask.width >= width &&
-    mask.y + mask.height >= height;
-  if (coversCanvas) {
+    mask.y + mask.height >= height);
+}
+
+export function getFocusMaskCornerRadius(mask: Rect, width: number, height: number) {
+  if (coversViewport(mask, width, height)) {
     return 0;
   }
 

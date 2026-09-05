@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react';
-import { MODE_PRESETS } from '../state/settingsStore';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   getRainCanvasRenderProfile,
   getWetGlassDetailPixelScale,
@@ -10,11 +9,17 @@ import {
 import type { PhotorealRefractionStatus, Rect, WeatherSettings } from './types';
 import { createProtectedWeatherMask, WeatherEngine } from './weatherEngine';
 import { WetGlassEngine } from './wetGlassEngine';
+import { FrameCadence } from './frameCadence';
+import { coversViewport } from './masks';
+import { FocusTransition } from './focusTransition';
+import { SceneTransition } from './sceneTransition';
 
 interface RainCanvasProps {
   activeMask: Rect | null;
+  focusKey?: string | number | null;
   settings: WeatherSettings;
   surface?: RainCanvasSurface;
+  paused?: boolean;
   photorealRefractionStatus?: PhotorealRefractionStatus;
 }
 
@@ -32,31 +37,45 @@ export function shouldRenderCanvasDropletHeads(
 
 export function RainCanvas({
   activeMask,
+  focusKey,
   settings,
   surface = 'overlay',
+  paused = false,
   photorealRefractionStatus = 'off',
 }: RainCanvasProps) {
   const atmosphereCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const glassCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const detailCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const engineRef = useRef(new WeatherEngine());
-  const wetGlassEngineRef = useRef(new WetGlassEngine());
+  const [engine] = useState(() => new WeatherEngine());
+  const [wetGlassEngine] = useState(() => new WetGlassEngine());
+  const invalidateRef = useRef<(() => void) | null>(null);
+  const pausedRef = useRef(paused);
   const settingsRef = useRef(settings);
   const maskRef = useRef(activeMask);
+  const focusKeyRef = useRef(focusKey);
   const refractionStatusRef = useRef(photorealRefractionStatus);
   const sizeRef = useRef({ width: 1, height: 1, dpr: 1 });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     settingsRef.current = settings;
+    invalidateRef.current?.();
   }, [settings]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     maskRef.current = activeMask;
-  }, [activeMask]);
+    focusKeyRef.current = focusKey;
+    invalidateRef.current?.();
+  }, [activeMask, focusKey]);
 
   useEffect(() => {
     refractionStatusRef.current = photorealRefractionStatus;
+    invalidateRef.current?.();
   }, [photorealRefractionStatus]);
+
+  useEffect(() => {
+    pausedRef.current = paused;
+    invalidateRef.current?.();
+  }, [paused]);
 
   useEffect(() => {
     const atmosphereCanvas = atmosphereCanvasRef.current;
@@ -77,8 +96,14 @@ export function RainCanvas({
     let timerId = 0;
     let lastTime = performance.now();
     let lastAtmosphereRenderTime = 0;
-    let lastFilmRenderTime = 0;
-    let lastDetailRenderTime = 0;
+    const atmosphereCadence = new FrameCadence();
+    const filmCadence = new FrameCadence();
+    const detailCadence = new FrameCadence();
+    const focusTransition = new FocusTransition();
+    const sceneTransition = new SceneTransition();
+    let resolutionDirty = true;
+    let inViewport = true;
+    let lastDeviceScale = window.devicePixelRatio || 1;
     let lastRefractionSubmitTime = 0;
 
     const resizeCanvas = (
@@ -122,12 +147,15 @@ export function RainCanvas({
       resizeCanvas(atmosphereCanvas, atmosphereCtx, width, height, atmosphereDpr);
       resizeCanvas(glassCanvas, glassCtx, width, height, glassDpr);
       resizeCanvas(detailCanvas, detailCtx, width, height, detailDpr);
+      resolutionDirty = false;
+      lastDeviceScale = window.devicePixelRatio || 1;
     };
 
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) {
-        applyResolution(entry.contentRect.width, entry.contentRect.height);
+        sizeRef.current = { ...sizeRef.current, width: entry.contentRect.width, height: entry.contentRect.height };
+        invalidate();
       }
     });
     observer.observe(atmosphereCanvas);
@@ -135,6 +163,7 @@ export function RainCanvas({
     applyResolution(initialRect.width, initialRect.height);
 
     const scheduleFrame = (delayMs = 0) => {
+      if (frameId || timerId) return;
       if (delayMs > 0) {
         timerId = window.setTimeout(() => {
           timerId = 0;
@@ -147,73 +176,86 @@ export function RainCanvas({
     };
 
     const tick = (now: number) => {
-      const currentSettings = settingsRef.current;
-      const atmosphereProfile = getRainCanvasRenderProfile(currentSettings, surface);
-      const detailProfile = getWetGlassDetailRenderProfile(currentSettings, surface);
-      const detailInterval = 1000 / detailProfile.targetFps;
-
-      if (document.visibilityState === 'hidden') {
+      frameId = 0;
+      if (document.visibilityState === 'hidden' || !inViewport) return;
+      const scene = sceneTransition.sample(settingsRef.current, now);
+      const currentSettings = scene.settings;
+      const currentSize = sizeRef.current;
+      const protectedMask = createProtectedWeatherMask(maskRef.current, currentSize.width, currentSize.height, currentSettings);
+      if (pausedRef.current || coversViewport(protectedMask, currentSize.width, currentSize.height)) {
+        focusTransition.update(protectedMask, focusKeyRef.current, now, false);
+        for (const ctx of [atmosphereCtx, glassCtx, detailCtx]) {
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+          ctx.restore();
+        }
+        if (surface === 'overlay' && currentSettings.photorealRefractionEnabled) {
+          window.rainpane?.submitPhotorealRefractionFrame?.({
+            viewport: { width: currentSize.width, height: currentSize.height },
+            protectedMask,
+            droplets: [],
+          });
+        }
         lastTime = now;
-        lastAtmosphereRenderTime = now;
-        lastFilmRenderTime = now;
-        lastDetailRenderTime = now;
-        scheduleFrame(1000 / atmosphereProfile.hiddenFps);
         return;
       }
-
-      if (lastDetailRenderTime > 0 && now - lastDetailRenderTime < detailInterval) {
-        scheduleFrame(detailInterval - (now - lastDetailRenderTime));
+      const atmosphereProfile = getRainCanvasRenderProfile(currentSettings, surface);
+      const detailProfile = getWetGlassDetailRenderProfile(currentSettings, surface);
+      if (!detailCadence.due(now, detailProfile.targetFps)) {
+        scheduleFrame(detailCadence.delay(now));
         return;
       }
 
       const dt = Math.min(atmosphereProfile.maxDeltaSeconds, (now - lastTime) / 1000);
       lastTime = now;
-      lastDetailRenderTime = now;
-      const currentSize = sizeRef.current;
-      applyResolution(currentSize.width, currentSize.height);
+      if (resolutionDirty || lastDeviceScale !== (window.devicePixelRatio || 1)) {
+        applyResolution(currentSize.width, currentSize.height);
+      }
       const { width, height } = sizeRef.current;
-      const protectedMask = createProtectedWeatherMask(maskRef.current, width, height, currentSettings);
+      const focusReturning = focusTransition.update(protectedMask, focusKeyRef.current, now,
+        !currentSettings.reducedMotion && !currentSettings.coverFullScreen &&
+        !(currentSettings.fullRainWhileMoving && !protectedMask));
 
-      wetGlassEngineRef.current.update(width, height, dt, protectedMask, currentSettings);
-      const atmosphereDue =
-        lastAtmosphereRenderTime === 0 || now - lastAtmosphereRenderTime >= 1000 / atmosphereProfile.targetFps;
-      if (atmosphereDue) {
+      wetGlassEngine.update(width, height, dt, protectedMask, currentSettings);
+      const atmosphereDue = atmosphereCadence.due(now, atmosphereProfile.targetFps);
+      if (atmosphereDue || focusReturning || scene.active) {
         const atmosphereDt = lastAtmosphereRenderTime === 0
           ? dt
           : Math.min(atmosphereProfile.maxDeltaSeconds, (now - lastAtmosphereRenderTime) / 1000);
-        const preset = MODE_PRESETS[currentSettings.mode];
-        engineRef.current.render(
+        engine.render(
           atmosphereCtx,
           width,
           height,
           atmosphereDt,
           maskRef.current,
           currentSettings,
-          preset,
+          scene.preset,
           protectedMask,
         );
-        wetGlassEngineRef.current.applyAtmosphereClarity(
+        wetGlassEngine.applyAtmosphereClarity(
           atmosphereCtx,
           width,
           height,
           protectedMask,
           currentSettings,
         );
+        focusTransition.apply(atmosphereCtx, width, height, now);
         lastAtmosphereRenderTime = now;
       }
 
-      const filmDue = lastFilmRenderTime === 0 || now - lastFilmRenderTime >= 1000 / detailProfile.filmFps;
-      if (filmDue) {
-        wetGlassEngineRef.current.renderFilm(
+      const filmDue = filmCadence.due(now, detailProfile.filmFps);
+      if (filmDue || focusReturning) {
+        wetGlassEngine.renderFilm(
           glassCtx,
           width,
           height,
           protectedMask,
           currentSettings,
         );
-        lastFilmRenderTime = now;
+        focusTransition.apply(glassCtx, width, height, now);
       }
-      wetGlassEngineRef.current.renderDropletDetails(
+      wetGlassEngine.renderDropletDetails(
         detailCtx,
         width,
         height,
@@ -227,20 +269,47 @@ export function RainCanvas({
           ),
         },
       );
+      focusTransition.apply(detailCtx, width, height, now);
       if (
         surface === 'overlay' &&
         currentSettings.photorealRefractionEnabled &&
         now - lastRefractionSubmitTime >= 1000 / 30 &&
         window.rainpane?.submitPhotorealRefractionFrame
       ) {
-        window.rainpane.submitPhotorealRefractionFrame(
-          wetGlassEngineRef.current.getPhotorealRefractionFrame(width, height, protectedMask),
-        );
+        const frame = wetGlassEngine.getPhotorealRefractionFrame(width, height, protectedMask);
+        if (focusReturning) {
+          for (const drop of frame.droplets) drop.opacity *= focusTransition.opacityAt(drop.x, drop.y, now);
+        }
+        window.rainpane.submitPhotorealRefractionFrame(frame);
         lastRefractionSubmitTime = now;
       }
-      scheduleFrame();
+      scheduleFrame(detailCadence.delay(performance.now()));
     };
 
+    function invalidate() {
+      lastRefractionSubmitTime = 0;
+      resolutionDirty = true;
+      atmosphereCadence.reset();
+      filmCadence.reset();
+      detailCadence.reset();
+      if (timerId) window.clearTimeout(timerId);
+      timerId = 0;
+      if (frameId) cancelAnimationFrame(frameId);
+      frameId = 0;
+      scheduleFrame();
+    }
+    const resume = () => {
+      lastTime = performance.now();
+      lastAtmosphereRenderTime = 0;
+      invalidate();
+    };
+    const intersectionObserver = surface === 'preview' ? new IntersectionObserver(([entry]) => {
+      inViewport = entry.isIntersecting;
+      if (inViewport) resume();
+    }) : null;
+    intersectionObserver?.observe(atmosphereCanvas);
+    invalidateRef.current = invalidate;
+    document.addEventListener('visibilitychange', resume);
     scheduleFrame();
 
     return () => {
@@ -249,8 +318,11 @@ export function RainCanvas({
         window.clearTimeout(timerId);
       }
       observer.disconnect();
+      intersectionObserver?.disconnect();
+      document.removeEventListener('visibilitychange', resume);
+      invalidateRef.current = null;
     };
-  }, [surface]);
+  }, [surface, engine, wetGlassEngine]);
 
   return (
     <>

@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { applyIntensity, applyMode, INTENSITY_PRESETS, MODE_PRESETS } from '../state/settingsStore';
 import type {
   DisplayMode,
@@ -163,7 +163,6 @@ export function ControlsPanel({
   const [activeTab, setActiveTab] = useState<ControlTab>('scene');
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [updateMessage, setUpdateMessage] = useState('');
-  const panelRef = useRef<HTMLElement | null>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const preset = MODE_PRESETS[settings.mode];
   const activeIntensity = INTENSITY_LABELS.find((intensity) => matchesIntensity(settings, intensity.id));
@@ -207,24 +206,6 @@ export function ControlsPanel({
     }
   };
 
-  const handleGlassPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
-    const panel = panelRef.current;
-    if (!panel || settings.reducedMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return;
-    }
-
-    const bounds = panel.getBoundingClientRect();
-    const x = ((event.clientX - bounds.left) / Math.max(1, bounds.width)) * 100;
-    const y = ((event.clientY - bounds.top) / Math.max(1, bounds.height)) * 100;
-    panel.style.setProperty('--glass-x', `${Math.min(100, Math.max(0, x)).toFixed(2)}%`);
-    panel.style.setProperty('--glass-y', `${Math.min(100, Math.max(0, y)).toFixed(2)}%`);
-    panel.style.setProperty('--glass-presence', '1');
-  };
-
-  const quietGlass = () => {
-    panelRef.current?.style.setProperty('--glass-presence', '0.32');
-  };
-
   const surpriseMe = () => {
     const modes = Object.keys(MODE_PRESETS) as Array<WeatherSettings['mode']>;
     const intensityIds = INTENSITY_LABELS.map(({ id }) => id);
@@ -260,12 +241,9 @@ export function ControlsPanel({
 
   return (
     <aside
-      ref={panelRef}
       className="controls-panel"
       data-overlay-enabled={overlayEnabled}
       aria-label="Rainpane atmosphere controls"
-      onPointerMove={handleGlassPointerMove}
-      onPointerLeave={quietGlass}
     >
       <header className="atmosphere-header">
         <div className="atmosphere-title">
@@ -327,9 +305,8 @@ export function ControlsPanel({
             aria-labelledby="control-tab-scene"
           >
             <SectionHeading
-              eyebrow="Weather rooms"
-              title="Choose a scene"
-              description="Each scene changes the light, weather, and quiet around your focus pane."
+              title="Set the mood"
+              description="Five ways to soften the world outside your window."
             />
             <ModeSelector value={settings.mode} onChange={(mode) => onChange(applyMode(settings, mode))} />
 
@@ -360,7 +337,7 @@ export function ControlsPanel({
               <SparkIcon />
               <span>
                 <strong>Surprise me</strong>
-                <small>Find a different weather room</small>
+                <small>Let the weather choose</small>
               </span>
             </button>
 

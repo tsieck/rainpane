@@ -8,7 +8,7 @@ It is not a productivity timer, app blocker, habit tracker, or focus cop. It jus
 
 ## See It In Motion
 
-[Watch the focus pane demo](https://sieck.dev/media/rainpane-focus.mp4)
+[Watch the new wet-glass desktop video](https://github.com/tsieck/rainpane/releases/download/v0.1.13/Rainpane-0.1.13-wet-glass.mp4) · [Focus pane demo](https://sieck.dev/media/rainpane-focus.mp4)
 
 ## Try It
 
@@ -21,10 +21,10 @@ Download the latest build from [GitHub Releases](https://github.com/tsieck/rainp
 
 ## What It Does
 
-- Keeps the active window visually clear.
+- Keeps the active window visually clear, with a gentle return of weather to the previous window.
 - Covers inactive windows and desktop background with procedural rain, fog, droplets, frost, grain, and occasional subtle weather detail.
 - Runs as a transparent, click-through overlay so normal desktop clicks still go to the apps underneath.
-- Offers calm presets like Cozy Rain, Night Drive, Greyglass, Storm Lock-in, and Winterglass.
+- Offers calm presets like Cozy Rain, Night Drive, Greyglass, Storm Lock-in, and Winterglass, with smooth transitions that preserve the wet glass.
 - Saves settings locally and works without an account, cloud sync, analytics, or subscriptions.
 - Offers an optional macOS Photoreal Refraction mode that bends locally sampled desktop pixels through each drop.
 - Includes a Demo Mode with fake draggable windows, a clear-before/after comparison, and focused Atmosphere, Scene, Tune, and Behavior controls.
@@ -67,7 +67,7 @@ npm start
 
 ## Build & Release
 
-The current stable release is `0.1.12`. Its verified implementation baseline, native-refraction boundary, and signed-release evidence are recorded in [the 0.1.12 release record](docs/RELEASE_0.1.12.md). The earlier [rc.2 closeout](docs/RELEASE_CANDIDATE_0.1.12-rc.2.md) and [rc.1 report](docs/RELEASE_CANDIDATE_0.1.12-rc.1.md) remain as historical evidence for those builds.
+The current stable release is `0.1.13`. It refines wet-glass optics, improves rendering performance, adds smoother focus and scene transitions, and corrects macOS overlay alignment. See [the 0.1.13 release record](docs/RELEASE_0.1.13.md) and [visual and performance validation](docs/VISUAL_PERFORMANCE_PASS.md). The [0.1.12 release record](docs/RELEASE_0.1.12.md) remains available as historical evidence.
 
 Create an unpacked local app:
 

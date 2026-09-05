@@ -31,12 +31,15 @@ export default defineConfig(({ command }) => ({
     react(),
     {
       name: 'rainpane-content-security-policy',
-      transformIndexHtml() {
+      transformIndexHtml(_html, context) {
+        const policy = createContentSecurityPolicy(command === 'serve');
         return [{
           tag: 'meta',
           attrs: {
             'http-equiv': 'Content-Security-Policy',
-            content: createContentSecurityPolicy(command === 'serve'),
+            content: command === 'serve' && context.path === '/preview.html'
+              ? policy.replace("frame-src 'none'", "frame-src 'self'")
+              : policy,
           },
           injectTo: 'head-prepend',
         }];

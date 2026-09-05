@@ -27,9 +27,9 @@ describe('droplet optical model', () => {
     expect(rim.fresnel).toBeGreaterThan(center.fresnel);
   });
 
-  it('reflects the shared upper-left room light and keeps the opposite meniscus dark', () => {
-    const lightFacing = sampleDropletOptics(-0.52, -0.56, 'pane', 4);
-    const opposing = sampleDropletOptics(0.52, 0.56, 'pane', 4);
+  it('forms a bright lower crescent beneath the dark upper shoulder', () => {
+    const lightFacing = sampleDropletOptics(0.12, 0.78, 'pane', 4);
+    const opposing = sampleDropletOptics(0.12, -0.78, 'pane', 4);
 
     expect(luminance(lightFacing)).toBeGreaterThan(luminance(opposing));
     expect(lightFacing.alpha).toBeGreaterThan(0);

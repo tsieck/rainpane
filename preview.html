@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rainpane responsive preview</title>
+    <style>
+      body { margin: 0; background: #091112; color: #dfe5d9; font: 13px system-ui; }
+      nav { display: flex; gap: 12px; padding: 12px; }
+      button { font: inherit; padding: 8px 12px; }
+      iframe { display: block; border: 0; }
+    </style>
+  </head>
+  <body>
+    <nav aria-label="Preview size">
+      <button data-width="1280" data-height="800">Laptop · 1280 × 800</button>
+      <button data-width="1024" data-height="720">Compact · 1024 × 720</button>
+      <button data-width="390" data-height="844">Narrow · 390 × 844</button>
+    </nav>
+    <iframe title="Rainpane preview" src="/" width="1280" height="800"></iframe>
+    <script type="module" src="/scripts/responsive-preview.ts"></script>
+  </body>
+</html>

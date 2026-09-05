@@ -1,4 +1,5 @@
 import type { WeatherSettings } from './types';
+import { sampleDropletOptics } from './dropletOptics';
 
 type CondensationTier = 'mist' | 'bead' | 'lens';
 
@@ -46,9 +47,9 @@ function desiredScaleFor(settings: WeatherSettings) {
     return 0.4;
   }
   if (settings.lowPowerMode) {
-    return 0.38;
+    return 0.48;
   }
-  return 0.48;
+  return 0.6;
 }
 
 function maxPopulationFor(settings: WeatherSettings) {
@@ -56,12 +57,12 @@ function maxPopulationFor(settings: WeatherSettings) {
     return 4_200;
   }
   if (settings.renderBudget === 'conservative') {
-    return 6_000;
+    return 4_200;
   }
   if (settings.lowPowerMode) {
-    return 9_000;
+    return 6_000;
   }
-  return 12_000;
+  return 8_000;
 }
 
 export function getCondensationProfile(
@@ -106,44 +107,31 @@ function seededRandom(seed: number) {
   };
 }
 
-function modeSeed(mode: WeatherSettings['mode']) {
-  let seed = 2166136261;
-  for (let index = 0; index < mode.length; index += 1) {
-    seed ^= mode.charCodeAt(index);
-    seed = Math.imul(seed, 16777619);
-  }
-  return seed >>> 0;
-}
+const beadSprites = new Map<CondensationTier, HTMLCanvasElement>();
 
-function traceBead(
-  ctx: CanvasRenderingContext2D,
-  bead: CondensationBead,
-  scale = 1,
-  offsetX = 0,
-  offsetY = 0,
-) {
-  const radiusX = bead.radiusX * scale;
-  const radiusY = bead.radiusY * scale;
-  const x = bead.x + bead.radiusX * offsetX;
-  const y = bead.y + bead.radiusY * offsetY;
-  ctx.moveTo(x + radiusX, y);
-  ctx.ellipse(x, y, radiusX, radiusY, bead.rotation, 0, TAU);
-}
-
-function traceTier(
-  ctx: CanvasRenderingContext2D,
-  beads: readonly CondensationBead[],
-  tier: CondensationTier,
-  scale: number,
-  offsetX = 0,
-  offsetY = 0,
-) {
-  ctx.beginPath();
-  for (const bead of beads) {
-    if (bead.tier === tier) {
-      traceBead(ctx, bead, scale, offsetX, offsetY);
+function getBeadSprite(tier: CondensationTier) {
+  const cached = beadSprites.get(tier);
+  if (cached) return cached;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 48;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const strength = tier === 'mist' ? 0.36 : tier === 'bead' ? 0.72 : 0.94;
+  const pixels = ctx.createImageData(48, 48);
+  for (let y = 0; y < 48; y++) {
+    for (let x = 0; x < 48; x++) {
+      const sample = sampleDropletOptics((x + 0.5 - 24) / 20, (y + 0.5 - 24) / 20,
+        tier === 'mist' ? 'micro' : 'bead', tier === 'lens' ? 5 : tier === 'bead' ? 2 : 0);
+      const offset = (y * 48 + x) * 4;
+      pixels.data[offset] = sample.red;
+      pixels.data[offset + 1] = sample.green;
+      pixels.data[offset + 2] = sample.blue;
+      pixels.data[offset + 3] = sample.alpha * strength * 255;
     }
   }
+  ctx.putImageData(pixels, 0, 0);
+  beadSprites.set(tier, canvas);
+  return canvas;
 }
 
 function traceDetailArc(
@@ -171,12 +159,15 @@ export class WetGlassCondensationField {
   private canvas: HTMLCanvasElement | null = null;
   private fieldCtx: CanvasRenderingContext2D | null = null;
   private cacheKey = '';
+  private detailCanvas: HTMLCanvasElement | null = null;
+  private detailCacheKey = '';
   private detailDarkRimPath: Path2D | null = null;
   private detailLightRimPath: Path2D | null = null;
   private detailHighlightPath: Path2D | null = null;
 
   reset() {
     this.cacheKey = '';
+    this.detailCacheKey = '';
     this.detailDarkRimPath = null;
     this.detailLightRimPath = null;
     this.detailHighlightPath = null;
@@ -218,36 +209,42 @@ export class WetGlassCondensationField {
       return;
     }
 
-    const scaleX = width / this.canvas.width;
-    const scaleY = height / this.canvas.height;
-    const densityScale = 0.66 + clamp(settings.dropletDensity, 0, 1) * 0.34;
-
-    ctx.save();
-    try {
-      // These sparse paths are intentionally drawn directly into the Retina
-      // detail canvas. The broad mist and lens bodies remain in the bounded,
-      // sub-resolution field above.
-      ctx.scale(scaleX, scaleY);
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      ctx.globalAlpha = 0.2 * densityScale;
-      ctx.strokeStyle = 'rgba(2, 10, 12, 0.76)';
-      ctx.lineWidth = 0.34;
-      ctx.stroke(this.detailDarkRimPath);
-
-      ctx.globalAlpha = 0.3 * densityScale;
-      ctx.strokeStyle = 'rgba(229, 244, 242, 0.84)';
-      ctx.lineWidth = 0.24;
-      ctx.stroke(this.detailLightRimPath);
-
-      ctx.globalAlpha = 0.34 * densityScale;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
-      ctx.fill(this.detailHighlightPath);
-    } finally {
-      ctx.restore();
+    // Condensation is stationary. Rasterize the rim paths only when the field
+    // or backing resolution changes, rather than tessellating them every frame.
+    // Keep the extra cache below 4 MP, including on large external displays.
+    const scale = Math.min(ctx.canvas.width / width, ctx.canvas.height / height,
+      2, 3072 / width, 3072 / height, Math.sqrt(4_000_000 / (width * height)));
+    const pixelWidth = Math.max(1, Math.floor(width * scale));
+    const pixelHeight = Math.max(1, Math.floor(height * scale));
+    const key = `${this.cacheKey}:${pixelWidth}:${pixelHeight}`;
+    if (!this.detailCanvas) this.detailCanvas = document.createElement('canvas');
+    if (key !== this.detailCacheKey) {
+      const cached = this.detailCanvas;
+      cached.width = pixelWidth;
+      cached.height = pixelHeight;
+      const detail = cached.getContext('2d');
+      if (!detail) return;
+      detail.scale(pixelWidth / this.canvas.width, pixelHeight / this.canvas.height);
+      detail.lineCap = 'round';
+      detail.lineJoin = 'round';
+      detail.globalAlpha = 0.28;
+      detail.strokeStyle = 'rgba(2, 10, 12, 0.76)';
+      detail.lineWidth = 0.34;
+      detail.stroke(this.detailDarkRimPath);
+      detail.globalAlpha = 0.48;
+      detail.strokeStyle = 'rgba(229, 244, 242, 0.84)';
+      detail.lineWidth = 0.24;
+      detail.stroke(this.detailLightRimPath);
+      detail.globalAlpha = 0.34;
+      detail.fillStyle = 'rgba(255, 255, 255, 0.88)';
+      detail.fill(this.detailHighlightPath);
+      this.detailCacheKey = key;
     }
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.66 + clamp(settings.dropletDensity, 0, 1) * 0.34;
+    ctx.drawImage(this.detailCanvas, 0, 0, width, height);
+    ctx.restore();
   }
 
   private ensureField(
@@ -270,8 +267,7 @@ export class WetGlassCondensationField {
 
     const pixelWidth = Math.max(1, Math.floor(width * profile.scale));
     const pixelHeight = Math.max(1, Math.floor(height * profile.scale));
-    const densityBucket = Math.round(clamp(settings.dropletDensity, 0, 1) * 24);
-    const nextKey = `${pixelWidth}:${pixelHeight}:${profile.population}:${densityBucket}:${settings.mode}`;
+    const nextKey = `${pixelWidth}:${pixelHeight}:${profile.population}:${getCondensationDetailProfile(settings).maxRims}`;
 
     if (this.canvas.width !== pixelWidth || this.canvas.height !== pixelHeight) {
       this.canvas.width = pixelWidth;
@@ -280,13 +276,13 @@ export class WetGlassCondensationField {
     }
 
     if (this.cacheKey !== nextKey) {
-      this.renderField(profile.population, settings, densityBucket);
+      this.renderField(profile.population, settings);
       this.cacheKey = nextKey;
     }
     return true;
   }
 
-  private renderField(population: number, settings: WeatherSettings, densityBucket: number) {
+  private renderField(population: number, settings: WeatherSettings) {
     const canvas = this.canvas;
     const ctx = this.fieldCtx;
     if (!canvas || !ctx) {
@@ -296,11 +292,11 @@ export class WetGlassCondensationField {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const seed = modeSeed(settings.mode) ^ Math.imul(canvas.width, 73856093) ^ Math.imul(canvas.height, 19349663) ^ densityBucket;
+    const seed = 2166136261 ^ Math.imul(canvas.width, 73856093) ^ Math.imul(canvas.height, 19349663);
     const random = seededRandom(seed);
     const beads: CondensationBead[] = [];
     const phase = random() * TAU;
-    const lensLimit = Math.min(48, Math.max(10, Math.round(population * 0.012)));
+    const lensLimit = 180;
     let lensCount = 0;
     let attempts = 0;
     const maxAttempts = population * 5;
@@ -326,9 +322,9 @@ export class WetGlassCondensationField {
       }
 
       const tierRoll = random();
-      const tier: CondensationTier = tierRoll < 0.012 && lensCount < lensLimit
+      const tier: CondensationTier = tierRoll < 0.035 && lensCount < lensLimit
         ? 'lens'
-        : tierRoll < 0.235
+        : tierRoll < 0.34
           ? 'bead'
           : 'mist';
       if (tier === 'lens') {
@@ -336,9 +332,9 @@ export class WetGlassCondensationField {
       }
 
       const radiusX = tier === 'lens'
-        ? 1.25 + Math.pow(random(), 1.45) * 1.8
+        ? 1.5 + Math.pow(random(), 1.7) * 2.3
         : tier === 'bead'
-          ? 0.46 + Math.pow(random(), 2) * 0.96
+          ? 0.5 + Math.pow(random(), 2) * 1.15
           : 0.18 + Math.pow(random(), 3.1) * 0.46;
       const aspect = tier === 'lens'
         ? 0.8 + random() * 0.72
@@ -361,44 +357,24 @@ export class WetGlassCondensationField {
       });
     }
 
-    this.buildDetailPaths(beads, settings, densityBucket);
+    this.buildDetailPaths(beads, settings);
 
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = 'rgba(5, 16, 18, 0.42)';
-    traceTier(ctx, beads, 'mist', 1.04);
-    ctx.fill();
-
-    ctx.globalAlpha = 0.36;
-    ctx.fillStyle = 'rgba(2, 10, 12, 0.66)';
-    traceTier(ctx, beads, 'bead', 1.12);
-    ctx.fill();
-
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = 'rgba(1, 7, 9, 0.82)';
-    traceTier(ctx, beads, 'lens', 1.18);
-    ctx.fill();
-
-    ctx.globalAlpha = 0.08;
-    ctx.fillStyle = 'rgba(181, 204, 203, 0.28)';
-    traceTier(ctx, beads, 'mist', 0.62, -0.1, -0.1);
-    ctx.fill();
-
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = 'rgba(174, 199, 199, 0.42)';
-    traceTier(ctx, beads, 'bead', 0.72, -0.12, -0.12);
-    ctx.fill();
-
-    ctx.globalAlpha = 0.28;
-    ctx.fillStyle = 'rgba(164, 192, 193, 0.44)';
-    traceTier(ctx, beads, 'lens', 0.76, -0.14, -0.14);
-    ctx.fill();
-
+    // Stamp three small reusable lenses instead of submitting enormous paths
+    // containing thousands of overlapping ellipses. Clear centers keep the
+    // film looking like water rather than dark stippled paint.
+    ctx.globalAlpha = 1;
+    for (const bead of beads) {
+      const sprite = getBeadSprite(bead.tier);
+      if (!sprite) continue;
+      ctx.drawImage(sprite,
+        bead.x - bead.radiusX * 1.2, bead.y - bead.radiusY * 1.2,
+        bead.radiusX * 2.4, bead.radiusY * 2.4);
+    }
   }
 
   private buildDetailPaths(
     beads: readonly CondensationBead[],
     settings: WeatherSettings,
-    densityBucket: number,
   ) {
     if (typeof Path2D === 'undefined') {
       this.detailDarkRimPath = null;
@@ -412,10 +388,9 @@ export class WetGlassCondensationField {
     const beadCandidates = beads.filter((bead) => bead.tier === 'bead');
     const beadBudget = Math.max(0, profile.maxRims - lenses.length);
     const stride = beadBudget > 0 ? Math.max(1, Math.ceil(beadCandidates.length / beadBudget)) : Number.POSITIVE_INFINITY;
-    const phase = Number.isFinite(stride) ? densityBucket % stride : 0;
     const selected = [
       ...lenses,
-      ...beadCandidates.filter((_, index) => index % stride === phase).slice(0, beadBudget),
+      ...beadCandidates.filter((_, index) => index % stride === 0).slice(0, beadBudget),
     ];
 
     const darkRim = new Path2D();
@@ -429,8 +404,8 @@ export class WetGlassCondensationField {
         bead.radiusX * 1.02,
         bead.radiusY * 1.02,
         bead.rotation,
-        Math.PI * -0.08,
-        Math.PI * 0.72,
+        Math.PI * 1.06,
+        Math.PI * 1.94,
       );
       traceDetailArc(
         lightRim,
@@ -439,8 +414,8 @@ export class WetGlassCondensationField {
         bead.radiusX * 0.92,
         bead.radiusY * 0.9,
         bead.rotation,
-        Math.PI * 0.96,
-        Math.PI * (1.42 + bead.highlightStrength * 0.1),
+        Math.PI * 0.15,
+        Math.PI * (0.72 + bead.highlightStrength * 0.1),
       );
 
       if (bead.highlightStrength >= profile.highlightThreshold) {

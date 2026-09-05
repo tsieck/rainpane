@@ -1,3 +1,4 @@
+import { sampleGlassMoisture } from './glassMist';
 import { pointInRect } from './masks';
 import type { ModePreset, Rect, WeatherSettings } from './types';
 
@@ -13,6 +14,7 @@ export class FogAccumulator {
   private cols = 0;
   private rows = 0;
   private values = new Float32Array(0);
+  private moisture = new Float32Array(0);
   private fogCanvas: HTMLCanvasElement | null = null;
   private fogCtx: CanvasRenderingContext2D | null = null;
   private pendingDt = 0;
@@ -35,6 +37,13 @@ export class FogAccumulator {
     this.cols = nextCols;
     this.rows = nextRows;
     this.values = new Float32Array(this.cols * this.rows);
+    this.moisture = new Float32Array(this.cols * this.rows);
+    for (let row = 0; row < this.rows; row++) {
+      for (let col = 0; col < this.cols; col++) {
+        this.moisture[row * this.cols + col] = sampleGlassMoisture(
+          (col + 0.5) * width / this.cols, (row + 0.5) * height / this.rows);
+      }
+    }
 
     if (typeof document !== 'undefined') {
       this.fogCanvas = document.createElement('canvas');
@@ -79,7 +88,7 @@ export class FogAccumulator {
         if (inClearMask) {
           this.values[index] = Math.max(0, this.values[index] - clearRate);
         } else {
-          this.values[index] = Math.min(maxValue, this.values[index] + buildRate);
+          this.values[index] = Math.min(maxValue * (0.28 + this.moisture[index] * 0.72), this.values[index] + buildRate * (0.35 + this.moisture[index]));
         }
       }
     }
